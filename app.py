@@ -37,7 +37,7 @@ st.markdown("""
     /* Hide Streamlit default elements */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    header {visibility: hidden;}
+    /* header {visibility: hidden;} */
 
     /* Main background */
     .stApp { background-color: #f8f7f4; }
