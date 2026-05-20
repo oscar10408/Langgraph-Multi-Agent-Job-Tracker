@@ -176,27 +176,10 @@ def update_application(company: str = None, role: str = None,
     return f"✅ Updated: {row_data.get('Company')} - {row_data.get('Position')}"
 
 
+import requests
+from bs4 import BeautifulSoup
+
 def scrape_job_url(url: str) -> str:
-    """
-    Scrape job description text from a URL.
-    Strategy:
-    1. Try requests + BeautifulSoup first, which is more reliable on Streamlit Cloud.
-    2. If the fetched content is too short, fall back to Playwright for JS-rendered pages.
-    3. Return an empty string on failure.
-    """
-    import requests
-    from bs4 import BeautifulSoup
-
-    def clean_html(html: str) -> str:
-        soup = BeautifulSoup(html, "html.parser")
-
-        for tag in soup(["script", "style", "nav", "footer", "header", "noscript"]):
-            tag.decompose()
-
-        text = soup.get_text(separator="\n", strip=True)
-        lines = [line.strip() for line in text.splitlines() if line.strip()]
-        return "\n".join(lines)
-
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -205,58 +188,38 @@ def scrape_job_url(url: str) -> str:
         ),
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
+        "Referer": "https://www.google.com/",
     }
 
-    # 1. Try normal HTTP request first
     try:
-        response = requests.get(url, headers=headers, timeout=20)
+        response = requests.get(url, headers=headers, timeout=20, allow_redirects=True)
+
+        print("[Scrape Debug] URL:", url)
+        print("[Scrape Debug] Status:", response.status_code)
+        print("[Scrape Debug] Final URL:", response.url)
+        print("[Scrape Debug] Content-Type:", response.headers.get("content-type"))
+        print("[Scrape Debug] HTML length:", len(response.text))
+        print("[Scrape Debug] First 500 chars:", response.text[:500])
+
         response.raise_for_status()
 
-        content = clean_html(response.text)
+        soup = BeautifulSoup(response.text, "html.parser")
 
-        if len(content) >= 500:
-            print(f"[Scrape] ✅ Requests fetched {len(content)} chars from {url}")
-            return content
+        for tag in soup(["script", "style", "nav", "footer", "header", "noscript"]):
+            tag.decompose()
 
-        print(f"[Scrape] ⚠️ Requests fetched only {len(content)} chars, trying Playwright...")
+        content = soup.get_text(separator="\n", strip=True)
 
-    except Exception as e:
-        print(f"[Scrape] ⚠️ Requests failed: {e} | URL: {url}")
+        print(f"[Scrape] Fetched text length: {len(content)}")
 
-    # 2. Fallback to Playwright for dynamic JS-rendered pages
-    try:
-        from playwright.sync_api import sync_playwright
+        if len(content) < 200:
+            print("[Scrape] Content too short. Probably blocked or JS-rendered.")
+            return ""
 
-        with sync_playwright() as p:
-            browser = p.chromium.launch(
-                headless=True,
-                args=["--no-sandbox", "--disable-dev-shm-usage"]
-            )
-            page = browser.new_page(
-                user_agent=(
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/120.0.0.0 Safari/537.36"
-                )
-            )
-
-            page.goto(url, timeout=30000, wait_until="domcontentloaded")
-            page.wait_for_timeout(3000)
-
-            html = page.content()
-            browser.close()
-
-        content = clean_html(html)
-
-        if len(content) >= 200:
-            print(f"[Scrape] ✅ Playwright fetched {len(content)} chars from {url}")
-            return content
-
-        print(f"[Scrape] ⚠️ Playwright content too short: {len(content)} chars | URL: {url}")
-        return ""
+        return content
 
     except Exception as e:
-        print(f"[Scrape] ❌ Playwright failed: {e} | URL: {url}")
+        print(f"[Scrape] Error: {e} | URL: {url}")
         return ""
 
 def get_incomplete_rows() -> list[dict]:
