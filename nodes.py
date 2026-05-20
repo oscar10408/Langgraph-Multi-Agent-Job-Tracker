@@ -46,7 +46,7 @@ llm = ChatGroq(model="meta-llama/llama-4-scout-17b-16e-instruct")
 
 # ──────────────────────────────────────────
 # Node 1: Router
-Classifies user intent and decides which path to take
+# Classifies user intent and decides which path to take
 # ──────────────────────────────────────────
 def router_node(state: AgentState) -> AgentState:
     """
