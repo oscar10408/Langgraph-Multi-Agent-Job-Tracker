@@ -178,19 +178,16 @@ def update_application(company: str = None, role: str = None,
 
 
 def scrape_job_url(url: str) -> str:
-    """
-    Uses Playwright to scrape dynamic JavaScript-rendered web pages.
-    Returns an empty string on failure.
-    """
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            browser = p.chromium.launch(
+                headless=True,
+                args=["--no-sandbox", "--disable-dev-shm-usage"]  # ← 雲端環境必加
+            )
             page = browser.new_page()
             page.goto(url, timeout=20000)
-            # Wait for full page load
             page.wait_for_load_state("networkidle", timeout=20000)
-            page.wait_for_timeout(2000)  # Extra 2s to ensure JS finishes executing
-            # Capture full HTML then parse
+            page.wait_for_timeout(2000)
             html = page.content()
             browser.close()
 
