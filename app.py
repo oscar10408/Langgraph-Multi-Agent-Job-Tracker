@@ -17,6 +17,7 @@ from openpyxl import load_workbook
 from datetime import date
 import os
 import sys
+import subprocess
 
 def install_playwright_browser():
     try:
