@@ -506,16 +506,24 @@ elif page == "🎯 Interview Prep":
                     from nodes import _generate_interview_prep
                     from langchain_core.messages import HumanMessage
 
-                    if url and not jd_manual:
+                    url = url.strip()
+                    jd_manual = jd_manual.strip()
+
+                    jd = ""
+
+                    if url:
+                        st.write("DEBUG: about to call scrape_job_url")
                         from tools import scrape_job_url
                         jd = scrape_job_url(url)
-                        if not jd or len(jd) < 200:
-                            jd = jd_manual
-                    else:
-                        jd = jd_manual
+                        st.write("DEBUG: scraped JD length:", len(jd))
 
-                    if not jd:
-                        st.error("Could not fetch JD. Please paste it manually.")
+                    if not jd or len(jd) < 200:
+                        if jd_manual:
+                            st.warning("URL fetch failed or returned too little text. Using manually pasted JD.")
+                            jd = jd_manual
+                        else:
+                            st.error("Could not fetch JD automatically. Please paste the JD manually.")
+                            st.stop()
                     else:
                         result = _generate_interview_prep(jd, url, {"messages": [HumanMessage(content="interview prep")]})
                         st.markdown(result["result"])
