@@ -1,5 +1,16 @@
+streamlit
+pandas
+plotly
+openpyxl
 langchain
 langgraph
 langchain-groq
 langchain-core
 python-dotenv
+playwright
+beautifulsoup4
+python-docx
+google-api-python-client
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
