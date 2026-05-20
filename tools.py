@@ -177,12 +177,51 @@ def update_application(company: str = None, role: str = None,
     return f"✅ Updated: {row_data.get('Company')} - {row_data.get('Position')}"
 
 
+import requests
+from bs4 import BeautifulSoup
+
 def scrape_job_url(url: str) -> str:
+    """
+    Scrape job description from a URL.
+    For Workday sites: use requests (meta tags contain full JD).
+    For others: fall back to Playwright.
+    """
+
+    # ── Workday: 直接用 requests 抓 meta 標籤 ──
+    if "myworkdayjobs.com" in url:
+        try:
+            headers = {
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/124.0.0.0 Safari/537.36"
+                )
+            }
+            resp = requests.get(url, headers=headers, timeout=15)
+            soup = BeautifulSoup(resp.text, "html.parser")
+
+            # Workday 把完整 JD 塞在 meta[name="description"] 或 meta[property="og:description"]
+            content = ""
+            for attr in [("name", "description"), ("property", "og:description")]:
+                tag = soup.find("meta", {attr[0]: attr[1]})
+                if tag and tag.get("content"):
+                    content = tag["content"]
+                    break
+
+            if content:
+                print(f"[Scrape] ✅ Workday meta fetched {len(content)} chars from {url}")
+                return content
+        except Exception as e:
+            print(f"[Scrape] ❌ Workday requests failed: {e}")
+            # fall through to Playwright
+
+    # ── 其他網站：用 Playwright ──
     try:
+        from playwright.sync_api import sync_playwright
         with sync_playwright() as p:
             browser = p.chromium.launch(
                 headless=True,
-                args=["--no-sandbox", "--disable-dev-shm-usage"]  # ← 雲端環境必加
+                args=["--no-sandbox", "--disable-dev-shm-usage"]
             )
             page = browser.new_page()
             page.goto(url, timeout=20000)
@@ -195,10 +234,10 @@ def scrape_job_url(url: str) -> str:
         for tag in soup(["script", "style", "nav", "footer", "header"]):
             tag.decompose()
         content = soup.get_text(separator="\n", strip=True)
-        print(f"[Scrape] ✅ Fetched {len(content)} chars from {url}")
+        print(f"[Scrape] ✅ Playwright fetched {len(content)} chars from {url}")
         return content
     except Exception as e:
-        print(f"[Scrape] ❌ Error: {e} | URL: {url}")
+        print(f"[Scrape] ❌ Playwright failed: {e}")
         return ""
 
 def get_incomplete_rows() -> list[dict]:
