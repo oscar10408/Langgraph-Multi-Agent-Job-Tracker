@@ -182,11 +182,8 @@ def scrape_job_url(url: str) -> str:
     Uses Playwright to scrape dynamic JavaScript-rendered web pages.
     Returns an error string on failure for debugging.
     """
-    print("🔥 scrape_job_url CALLED:", url, flush=True)
 
     try:
-        print("🔥 starting Playwright", flush=True)
-
         with sync_playwright() as p:
             print("🔥 launching Chromium", flush=True)
 
