@@ -16,7 +16,7 @@ import os
 from datetime import date
 import shutil
 from openpyxl import load_workbook
-from playwright.sync_api import sync_playwright
+# from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 from docx import Document
 import re
