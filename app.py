@@ -18,6 +18,18 @@ from datetime import date
 import os
 import sys
 
+def install_playwright_browser():
+    try:
+        subprocess.run(
+            [sys.executable, "-m", "playwright", "install", "chromium"],
+            check=True
+        )
+    except Exception as e:
+        print(f"[Playwright Install] Failed: {e}", flush=True)
+
+install_playwright_browser()
+
+
 if "GROQ_API_KEY" in st.secrets:
     os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
     
