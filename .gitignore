@@ -3,11 +3,6 @@ data/credentials.json
 data/token.json
 .env
 
-# ── Personal data ─────────────────────────────────────────
-data/profile.json
-data/jobs.json
-data/Record_of_job_AI.xlsx
-
 # ── Generated outputs ─────────────────────────────────────
 cover_letters/
 interview_prep/

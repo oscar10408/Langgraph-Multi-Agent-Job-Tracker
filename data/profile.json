@@ -1,0 +1,292 @@
+{
+  "name": "Hao-Chun (Oscar) Shih",
+  "email": "haochuns@umich.edu",
+  "phone": "+1(734)-780-4256",
+  "location": "Ann Arbor, MI",
+  "github": "https://github.com/oscar10408",
+  "linkedin": "https://www.linkedin.com/in/oscar-hao-chun",
+  "portfolio": "https://oscar10408.github.io/",
+
+  "summary": "Data Science graduate student at the University of Michigan (GPA: 4.00), skilled in machine learning, NLP, analytics, database systems, and quantitative modeling. Experienced across the full data science stack from ETL pipelines to production ML systems. Published researcher at EMNLP with industry experience at Micron Technology, Academia Sinica, and WPG Holdings.",
+
+  "education": [
+    {
+      "degree": "Master of Data Science",
+      "school": "University of Michigan, Ann Arbor",
+      "period": "Aug 2024 – May 2026",
+      "gpa": "4.00",
+      "relevant_courses": ["Data Mining", "Information Visualization", "Machine Learning", "Statistical Modeling on Financial Data"]
+    },
+    {
+      "degree": "Bachelor of Science in Applied Mathematics",
+      "school": "National Chung Hsing University",
+      "period": "Sep 2019 – Jun 2023",
+      "gpa": "3.92, Ranked 1st in department"
+    }
+  ],
+
+  "experience": [
+    {
+      "title": "Data Analyst Intern",
+      "company": "Micron Technology, GQ Operations Team",
+      "period": "Jul 2025 – Sep 2025",
+      "highlights": [
+        "Built burn-in board dashboard end-to-end including data pipeline re-engineering with Python automation and SQL query optimization, improving machine allocation accuracy by 16% and enabling real-time anomaly detection for cross-team monitoring",
+        "Redesigned 3 operational dashboards by resolving join logic inconsistencies and schema conflicts through cross-platform data validation (SQL Server, TSUM, Tableau), collaborating with 10+ teams to standardize metric definitions and establish single source of truth",
+        "Developed demand forecasting solution using ensemble methods (Random Forest, XGBoost) and deep learning (LSTM & attention) on 50K+ time-series records, reducing forecast error (MAPE) by 43% for monthly capacity planning"
+      ]
+    },
+    {
+      "title": "Research Assistant",
+      "company": "Academia Sinica, CKIP Lab",
+      "period": "Oct 2023 – Jun 2024",
+      "highlights": [
+        "Analyzed performance and cost trade-offs in an enterprise internal knowledge retrieval system (E-Sun Bank internal chatbot) by evaluating domain-specific LLM customization strategies with PEFT techniques including LoRA, Adapter, Parallel Adapter, Mix-and-Match Adapter, and Prefix Tuning",
+        "Designed and executed 60+ A/B tests to assess the impact of model configuration, training checkpoints, and data variations on retrieval quality and response consistency",
+        "Delivered a PEFT and RAG-integrated prototype with clear recommendations that improved retrieval F1 by 10% and supported an estimated 4% productivity gain for enterprise users",
+        "Presented research results at the internationally recognized EMNLP conference"
+      ]
+    },
+    {
+      "title": "Business Intelligence Intern",
+      "company": "WPG Holdings",
+      "period": "Jul 2022 – Sep 2022",
+      "highlights": [
+        "Re-engineered legacy DataStage ETL pipelines by refactoring join logic to eliminate nested loop operations and duplicate record generation, accelerating Cognos report loading time by 80%",
+        "Led migration of 54 scheduled DataStage jobs to SSIS through systematic reverse-engineering and selective optimization, reducing average processing time by 13% to enable Oracle ERP integration and multi-region data consolidation",
+        "Streamlined 27 Cognos electronic forms across accounting, sales, and procurement functions by resolving backend integration issues, enhancing data reliability and operational efficiency",
+        "Strengthened reporting system stability by addressing ETL failure patterns and performance bottlenecks, driving $50K in annual cost savings through reduced maintenance overhead"
+      ]
+    }
+  ],
+
+  "projects": [
+    {
+      "name": "JPMorgan ML: Income Classification & Customer Segmentation",
+      "category": "ML/AI",
+      "tools": ["Python", "Scikit-learn", "XGBoost"],
+      "highlights": [
+        "Built end-to-end ML workflow for financial services analytics combining income classification with customer segmentation",
+        "Evaluated multiple classification models using ROC-AUC, PR-AUC, threshold tuning, and confusion matrix trade-offs",
+        "Discovered interpretable customer segments through dimensionality reduction and clustering",
+        "Profiled each segment by income potential, employment patterns, education, and demographic characteristics to support strategic decision-making"
+      ]
+    },
+    {
+      "name": "GUI-ASFormer: Transformer-Based GUI Video Segmentation",
+      "category": "ML/AI",
+      "tools": ["Python", "PyTorch", "Swin Transformer", "ASFormer"],
+      "highlights": [
+        "Built end-to-end video segmentation pipeline on 2,000+ GUI interaction videos to model user action sequences from high-dimensional, unstructured visual data",
+        "Fine-tuned temporal models and designed a Swin Transformer with spatial attention to improve representation learning for high-resolution GUI environments",
+        "Detected keyframes from minimal visual changes and improved segment accuracy with post-refinement",
+        "Achieved 38% accuracy improvement; enables downstream use cases like GUI agent training and tutorial summarization"
+      ]
+    },
+    {
+      "name": "Health Activity Recommender: Contextual Bandit for Personalized Wellness",
+      "category": "ML/AI",
+      "tools": ["Python", "SQL"],
+      "highlights": [
+        "Developed reinforcement learning-based recommendation system to personalize health activity suggestions using historical engagement signals and user context",
+        "Applied contextual multi-armed bandit via Thompson Sampling to balance exploration and exploitation",
+        "Boosted user step counts by 15-20% through tailored suggestions",
+        "Enhanced recommendation accuracy by 25% through integrating contextual factors like user preferences and health data"
+      ]
+    },
+    {
+      "name": "Unsupervised Learning Core: K-Means, GMM, and CVAE Implementations",
+      "category": "ML/AI",
+      "tools": ["Python", "NumPy"],
+      "highlights": [
+        "Implemented K-Means from first principles for intuitive cluster separation",
+        "Built Gaussian Mixture Models using EM algorithm for soft assignment and probabilistic density estimation",
+        "Constructed Conditional Variational Autoencoder (CVAE) to learn latent representations and generate samples conditioned on labels",
+        "Visualized clustering and latent space in 2D for real-world datasets including MNIST"
+      ]
+    },
+    {
+      "name": "Transfer Learning: Vision & Language Modeling with Transformers",
+      "category": "ML/AI",
+      "tools": ["Python", "PyTorch"],
+      "highlights": [
+        "Fine-tuned ResNet with limited data for high-accuracy image classification",
+        "Built transformer decoder-only model for next-token prediction (GPT-style language generation)",
+        "Implemented self-attention and causal masking from scratch",
+        "Demonstrated task switching across computer vision and NLP domains"
+      ]
+    },
+    {
+      "name": "CNN for Image Classification & RNN for Image Captioning",
+      "category": "ML/AI",
+      "tools": ["Python", "NumPy"],
+      "highlights": [
+        "Engineered deep learning pipeline entirely from scratch using NumPy, combining CNN for image feature extraction and RNN for caption generation",
+        "Achieved 82% image classification accuracy and BLEU-1 score of 0.52 using mini-batch SGD and Adam optimizer",
+        "Enhanced model stability with batch normalization and dropout; validated correctness via gradient checking"
+      ]
+    },
+    {
+      "name": "Facebook-Style Relational Database Design",
+      "category": "Database Management",
+      "tools": ["SQL", "Oracle"],
+      "highlights": [
+        "Designed ER diagram to model entities such as users, friendships, messages, photos, and events for a Facebook-scale social platform",
+        "Implemented SQL scripts to create and manage database objects ensuring referential integrity",
+        "Developed views and queries to facilitate data retrieval and analysis at scale"
+      ]
+    },
+    {
+      "name": "Facebook-Style JDBC Database Interaction",
+      "category": "Database Management",
+      "tools": ["Java", "JDBC", "SQL"],
+      "highlights": [
+        "Implemented SQL queries to extract meaningful insights from social network database",
+        "Utilized JDBC for database connectivity and data manipulation",
+        "Organized code to separate concerns between data access and business logic"
+      ]
+    },
+    {
+      "name": "MongoDB User Data Analysis & Query",
+      "category": "Database Management",
+      "tools": ["MongoDB", "Oracle", "JSON"],
+      "highlights": [
+        "Migrated relational data from Oracle to MongoDB, transforming into JSON document format",
+        "Performed queries to analyze friend counts, restore broken friendships, and extract birth month distributions",
+        "Applied MongoDB aggregation framework for efficient data grouping and statistical analysis"
+      ]
+    },
+    {
+      "name": "Grace Hash Join Implementation",
+      "category": "Database Management",
+      "tools": ["C++"],
+      "highlights": [
+        "Implemented Grace Hash Join algorithm to perform efficient joins on large datasets under memory constraints",
+        "Designed partition phase using hash function to divide large relations into disk-based buckets",
+        "Handled recursive repartitioning when intermediate partitions exceed available buffers",
+        "Simulated buffer pool management and disk I/O to mimic realistic system limitations"
+      ]
+    },
+    {
+      "name": "Tornado Interactive Dashboard",
+      "category": "Data Analysis",
+      "tools": ["Altair", "Tableau", "Streamlit"],
+      "highlights": [
+        "Built interactive dashboard over 60,000+ tornado events with pre-aggregated metrics and interactive filtering",
+        "Supports filtering by state, year, and Fujita scale (EF0-EF5)",
+        "Visualizes fatalities, injuries, and property/crop damage through charts and heatmaps",
+        "Deployed as live Streamlit app enabling stakeholder self-service exploration"
+      ]
+    },
+    {
+      "name": "Interactive Visualization of School Demographics and Performance",
+      "category": "Data Analysis",
+      "tools": ["Altair", "Python"],
+      "highlights": [
+        "Explored relationships among school demographics, economic status, and academic performance in New York State",
+        "Built scatter + bar chart combo to visualize how financial status relates to scores with linked race composition charts",
+        "Developed interactive map with gender pyramid to explore geographic patterns across NYC schools",
+        "Designed for educational researchers and policy analysts to gain intuitive insights from large public datasets"
+      ]
+    },
+    {
+      "name": "Health Insurance Cost Prediction",
+      "category": "Data Analysis",
+      "tools": ["R", "Python"],
+      "highlights": [
+        "Analyzed how Age, BMI, smoking status, and number of children influence insurance premiums",
+        "Performed feature engineering including Box-Cox transformations for normalizing skewed data",
+        "Applied Linear Regression, Polynomial Regression, and Random Forest; conducted ANOVA and VIF analysis to address multicollinearity",
+        "Reduced RMSE by 70% in test data, enabling better cost estimations"
+      ]
+    },
+    {
+      "name": "Statistical Inference and Density Estimation",
+      "category": "Finance",
+      "tools": ["R"],
+      "highlights": [
+        "Estimated t-distribution parameters based on kurtosis for modeling fat tails in financial returns",
+        "Applied Method of Moments to fit Gaussian Mixture Models",
+        "Applied Kernel Density Estimation (KDE) and minimized Integrated Squared Error (ISE)",
+        "Simulated S&P 500 returns and constructed confidence intervals for financial analysis"
+      ]
+    },
+    {
+      "name": "Extreme Value Theory for Financial Risk Estimation",
+      "category": "Finance",
+      "tools": ["R"],
+      "highlights": [
+        "Applied Extreme Value Theory (EVT) to estimate tail risks in financial markets for modeling rare events like market crashes",
+        "Utilized Peaks Over Threshold (POT) method with Generalized Pareto Distribution (GPD) for tail modeling",
+        "Compared EVT-based VaR and ES estimates with historical simulation; validated with backtesting procedures"
+      ]
+    },
+    {
+      "name": "Robust Dependence Modeling and Copula Simulation",
+      "category": "Finance",
+      "tools": ["R"],
+      "highlights": [
+        "Implemented various copula families including Gaussian, T, Clayton, and Gumbel to model complex dependence structures between financial assets",
+        "Simulated joint distributions with specified marginal behaviors and analyzed tail dependencies",
+        "Improved dependency modeling accuracy by 30%"
+      ]
+    },
+    {
+      "name": "Multivariate Risk Modeling and Portfolio Optimization",
+      "category": "Finance",
+      "tools": ["R"],
+      "highlights": [
+        "Modeled asset co-movements using multivariate statistics and copulas to capture nonlinear and tail dependencies",
+        "Constructed Efficient Frontier identifying optimal portfolios that maximize return for a given level of risk",
+        "Evaluated VaR and Expected Shortfall (ES) to measure tail risks",
+        "Integrated CAPM to assess expected returns relative to systematic market risk (beta)",
+        "Conducted 10,000+ Monte Carlo simulations to derive portfolio-level risk metrics under stress scenarios"
+      ]
+    }
+  ],
+
+  "publications": [
+    {
+      "title": "Optimizing Knowledge Updates with PEFT in Neural Language Models",
+      "authors": "Hao-Chun Shih, Wei-Yun Ma",
+      "venue": "EMNLP",
+      "year": "2024",
+      "highlights": [
+        "Surveyed PEFT architectures including LoRA, Adapter, Parallel Adapter, Mix-and-Match Adapter, and Prefix Tuning",
+        "Investigated features of FFN-Integrated and Attention-Integrated modules",
+        "Revised evaluation methods on memorization ability of LLMs and quantified knowledge retention",
+        "Applied findings to E-Sun Bank enterprise internal chatbot system"
+      ]
+    }
+  ],
+
+  "skills": {
+    "programming_languages": ["Python", "C++", "Java", "JavaScript", "R", "SQL", "PL/SQL", "HTML", "CSS"],
+    "ml_frameworks": ["TensorFlow", "Scikit-learn", "PyTorch"],
+    "database_management": ["MySQL", "Oracle", "MongoDB", "IBM DataStage", "Microsoft SSIS", "Cognos", "AWS", "Google BigQuery"],
+    "tools": ["Jupyter", "LaTeX", "Linux", "Tableau", "Matplotlib", "Altair", "Streamlit", "Django", "LangChain", "LangGraph", "Git"]
+  },
+
+  "cover_letter_style": {
+    "tone": "professional but warm",
+    "length": "3-4 paragraphs",
+    "structure": [
+      "Opening: express genuine interest in the role and company, mention 1 specific thing about the company that resonates",
+      "Body 1: highlight the most relevant work experience with specific quantified metrics",
+      "Body 2: highlight complementary skills from projects or coursework that directly map to the JD requirements",
+      "Closing: express enthusiasm, mention availability, thank the reader"
+    ],
+    "emphasize": [
+      "quantified achievements with specific metrics",
+      "EMNLP publication and NLP/GenAI research expertise",
+      "full-stack data science skills from ETL pipelines to production ML systems",
+      "cross-functional collaboration experience"
+    ],
+    "avoid": [
+      "teaching assistant experience",
+      "generic phrases without specifics",
+      "listing too many technologies without context",
+      "mentioning every project — pick 2-3 most relevant ones"
+    ]
+  }
+}
