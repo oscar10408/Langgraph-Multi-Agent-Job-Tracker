@@ -17,19 +17,6 @@ from openpyxl import load_workbook
 from datetime import date
 import os
 import sys
-import subprocess
-
-def install_playwright_browser():
-    try:
-        subprocess.run(
-            [sys.executable, "-m", "playwright", "install", "chromium"],
-            check=True
-        )
-    except Exception as e:
-        print(f"[Playwright Install] Failed: {e}", flush=True)
-
-install_playwright_browser()
-
 
 if "GROQ_API_KEY" in st.secrets:
     os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
@@ -447,12 +434,8 @@ elif page == "📝 Cover Letter":
 
     url = st.text_input("Job URL", placeholder="https://jobs.ashbyhq.com/...")
     jd_manual = st.text_area("Or paste JD manually", height=200, placeholder="Paste the job description here if the URL can't be fetched automatically...")
-
-    st.write("DEBUG url:", url)
-    st.write("DEBUG jd_manual length:", len(jd_manual))
     
     if st.button("✨ Generate Cover Letter"):
-        st.write("DEBUG: Cover Letter button clicked")
         if not url and not jd_manual:
             st.warning("Please provide a URL or paste the JD.")
         else:
@@ -463,13 +446,7 @@ elif page == "📝 Cover Letter":
 
                     if url and not jd_manual:
                         from tools import scrape_job_url
-                        st.write("DEBUG: about to call scrape_job_url")
                         jd = scrape_job_url(url)
-                        st.write("DEBUG: scraped JD length:", len(jd))
-                        if jd.startswith("SCRAPE_ERROR:"):
-                            st.error(jd)
-                            st.stop()
-                        
                         if not jd or len(jd) < 200:
                             jd = jd_manual
                     else:
