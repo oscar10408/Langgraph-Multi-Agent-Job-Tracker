@@ -18,6 +18,9 @@ from datetime import date
 import os
 import sys
 
+if "GROQ_API_KEY" in st.secrets:
+    os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # ── Page config ────────────────────────────────────────────
