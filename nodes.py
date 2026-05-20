@@ -85,7 +85,7 @@ Reply with ONLY one word: query, add, analyze, edit, scrape, cover_letter, email
 
 # ──────────────────────────────────────────
 # Node 2: Query
-Fetches application data from Excel
+# Fetches application data from Excel
 # ──────────────────────────────────────────
 def query_node(state: AgentState) -> AgentState:
     user_message = state["messages"][-1].content
@@ -120,7 +120,7 @@ def query_node(state: AgentState) -> AgentState:
 
 # ──────────────────────────────────────────
 # Node 3: Add
-Adds a new job application record
+# Adds a new job application record
 # ──────────────────────────────────────────
 def add_node(state: AgentState) -> AgentState:
     """
@@ -158,7 +158,7 @@ Message: "{user_message}" """
 
 # ──────────────────────────────────────────
 # Node 4: Analyze
-Analyzes job search status and provides actionable advice
+# Analyzes job search status and provides actionable advice
 # ──────────────────────────────────────────
 def analyze_node(state: AgentState) -> AgentState:
     """
@@ -188,7 +188,7 @@ Give a concise, actionable response (3-5 sentences). Be encouraging but honest."
 
 # ──────────────────────────────────────────
 # Node 5: Respond
-Packages result into final AI response
+# Packages result into final AI response
 # ──────────────────────────────────────────
 def respond_node(state: AgentState) -> AgentState:
     """
