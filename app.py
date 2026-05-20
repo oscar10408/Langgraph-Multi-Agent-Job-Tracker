@@ -18,9 +18,6 @@ from datetime import date
 import os
 import sys
 
-if "GROQ_API_KEY" in st.secrets:
-    os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
-
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # ── Page config ────────────────────────────────────────────
@@ -37,7 +34,7 @@ st.markdown("""
     /* Hide Streamlit default elements */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    /* header {visibility: hidden;} */
+    header {visibility: hidden;}
 
     /* Main background */
     .stApp { background-color: #f8f7f4; }
@@ -227,7 +224,7 @@ with st.sidebar:
 
     page = st.radio(
         "Navigation",
-        ["📊 Dashboard", "📋 Applications", "📧 Email Scanner Demo", "📝 Cover Letter", "🎯 Interview Prep", "🔍 Job Match", "💬 Chat"],
+        ["📊 Dashboard", "📋 Applications", "📧 Email Scanner", "📝 Cover Letter", "🎯 Interview Prep", "🔍 Job Match", "💬 Chat"],
         label_visibility="collapsed"
     )
 
@@ -407,43 +404,23 @@ elif page == "📋 Applications":
 # ══════════════════════════════════════════════════════════
 # PAGE: EMAIL SCANNER
 # ══════════════════════════════════════════════════════════
-elif page == "📧 Email Scanner Demo":
-    st.markdown("## Email Scanner Demo")
-    st.markdown(
-        "Demo of an email-status extraction workflow for job applications. "
-        "For privacy reasons, the public version does not connect to Gmail."
-    )
+elif page == "📧 Email Scanner":
+    st.markdown("## Email Scanner")
+    st.markdown("Scan your Gmail for job application updates and auto-update your Excel.")
 
-    st.info(
-        "Public demo mode: this page uses sample email snippets only. "
-        "No Gmail account is connected and no real emails are scanned."
-    )
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        num_emails = st.number_input("Emails to scan", min_value=5, max_value=200, value=50, step=5)
 
-    sample_emails = [
-        {
-            "Sender": "recruiting@company.com",
-            "Subject": "Next steps for your Data Scientist application",
-            "Detected Status": "Interview",
-            "Suggested Update": "Move Company A to Interviewed"
-        },
-        {
-            "Sender": "careers@startup.com",
-            "Subject": "Thank you for applying",
-            "Detected Status": "Applied",
-            "Suggested Update": "Confirm Company B as Applied"
-        },
-        {
-            "Sender": "talent@company.com",
-            "Subject": "Update on your application",
-            "Detected Status": "Rejected",
-            "Suggested Update": "Move Company C to Rejected"
-        }
-    ]
-
-    st.dataframe(pd.DataFrame(sample_emails), use_container_width=True)
-
-    if st.button("🔍 Run demo scan", use_container_width=False):
-        st.success("Demo scan complete. No real Gmail data was accessed.")
+    if st.button("🔍 Scan emails now", use_container_width=False):
+        with st.spinner("Connecting to Gmail and scanning emails..."):
+            try:
+                from tools import scan_emails_for_status
+                result = scan_emails_for_status(max_results=num_emails)
+                st.success(result)
+                st.cache_data.clear()
+            except Exception as e:
+                st.error(f"Error: {e}")
 
 
 # ══════════════════════════════════════════════════════════
@@ -506,24 +483,16 @@ elif page == "🎯 Interview Prep":
                     from nodes import _generate_interview_prep
                     from langchain_core.messages import HumanMessage
 
-                    url = url.strip()
-                    jd_manual = jd_manual.strip()
-
-                    jd = ""
-
-                    if url:
-                        st.write("DEBUG: about to call scrape_job_url")
+                    if url and not jd_manual:
                         from tools import scrape_job_url
                         jd = scrape_job_url(url)
-                        st.write("DEBUG: scraped JD length:", len(jd))
-
-                    if not jd or len(jd) < 200:
-                        if jd_manual:
-                            st.warning("URL fetch failed or returned too little text. Using manually pasted JD.")
+                        if not jd or len(jd) < 200:
                             jd = jd_manual
-                        else:
-                            st.error("Could not fetch JD automatically. Please paste the JD manually.")
-                            st.stop()
+                    else:
+                        jd = jd_manual
+
+                    if not jd:
+                        st.error("Could not fetch JD. Please paste it manually.")
                     else:
                         result = _generate_interview_prep(jd, url, {"messages": [HumanMessage(content="interview prep")]})
                         st.markdown(result["result"])
@@ -685,18 +654,20 @@ elif page == "💬 Chat":
     # Quick action buttons
     st.markdown("---")
     st.markdown("**Quick actions**")
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
         if st.button("📋 Show latest 5 apps", use_container_width=True):
             st.session_state.chat_history.append({"role": "user", "content": "show me my latest 5 applications"})
             st.rerun()
-
     with col2:
         if st.button("📊 Job search analysis", use_container_width=True):
             st.session_state.chat_history.append({"role": "user", "content": "how is my job search going?"})
             st.rerun()
-
     with col3:
+        if st.button("📧 Scan 20 emails", use_container_width=True):
+            st.session_state.chat_history.append({"role": "user", "content": "scan my last 20 emails for job updates"})
+            st.rerun()
+    with col4:
         if st.button("🗑️ Clear chat", use_container_width=True):
             st.session_state.chat_history = []
             st.session_state.agent_state = {
