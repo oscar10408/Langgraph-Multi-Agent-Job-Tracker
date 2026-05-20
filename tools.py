@@ -180,53 +180,29 @@ def update_application(company: str = None, role: str = None,
 def scrape_job_url(url: str) -> str:
     """
     Uses Playwright to scrape dynamic JavaScript-rendered web pages.
-    Returns an error string on failure for debugging.
+    Returns an empty string on failure.
     """
-
     try:
         with sync_playwright() as p:
-            print("🔥 launching Chromium", flush=True)
-
-            browser = p.chromium.launch(
-                headless=True,
-                args=["--no-sandbox", "--disable-dev-shm-usage"]
-            )
-
-            page = browser.new_page(
-                user_agent=(
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/120.0.0.0 Safari/537.36"
-                )
-            )
-
-            print("🔥 going to URL", flush=True)
-            page.goto(url, timeout=30000, wait_until="domcontentloaded")
-
-            print("🔥 page loaded, waiting", flush=True)
-            page.wait_for_timeout(5000)
-
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
+            page.goto(url, timeout=20000)
+            # Wait for full page load
+            page.wait_for_load_state("networkidle", timeout=20000)
+            page.wait_for_timeout(2000)  # Extra 2s to ensure JS finishes executing
+            # Capture full HTML then parse
             html = page.content()
-            print("🔥 HTML length:", len(html), flush=True)
-
             browser.close()
 
         soup = BeautifulSoup(html, "html.parser")
-
         for tag in soup(["script", "style", "nav", "footer", "header"]):
             tag.decompose()
-
         content = soup.get_text(separator="\n", strip=True)
-
-        print(f"[Scrape] ✅ Fetched {len(content)} chars from {url}", flush=True)
-        print("[Scrape] First 500 chars:", content[:500], flush=True)
-
+        print(f"[Scrape] ✅ Fetched {len(content)} chars from {url}")
         return content
-
     except Exception as e:
-        error_msg = f"[Scrape] ❌ Error: {type(e).__name__}: {e} | URL: {url}"
-        print(error_msg, flush=True)
-        return f"SCRAPE_ERROR: {type(e).__name__}: {e}"
+        print(f"[Scrape] ❌ Error: {e} | URL: {url}")
+        return ""
 
 def get_incomplete_rows() -> list[dict]:
     """
