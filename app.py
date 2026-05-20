@@ -453,6 +453,10 @@ elif page == "📝 Cover Letter":
                         st.write("DEBUG: about to call scrape_job_url")
                         jd = scrape_job_url(url)
                         st.write("DEBUG: scraped JD length:", len(jd))
+                        if jd.startswith("SCRAPE_ERROR:"):
+                            st.error(jd)
+                            st.stop()
+                        
                         if not jd or len(jd) < 200:
                             jd = jd_manual
                     else:
