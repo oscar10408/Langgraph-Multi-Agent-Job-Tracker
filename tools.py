@@ -176,50 +176,35 @@ def update_application(company: str = None, role: str = None,
     return f"✅ Updated: {row_data.get('Company')} - {row_data.get('Position')}"
 
 
-import requests
-from bs4 import BeautifulSoup
-
 def scrape_job_url(url: str) -> str:
-    headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/120.0.0.0 Safari/537.36"
-        ),
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Referer": "https://www.google.com/",
-    }
-
+    """
+    Uses Playwright to scrape dynamic JavaScript-rendered web pages.
+    Returns an empty string on failure.
+    """
+    print("🔥 scrape_job_url CALLED:", url)
+    
     try:
-        response = requests.get(url, headers=headers, timeout=20, allow_redirects=True)
+        print("🔥 starting Playwright")
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
+            page.goto(url, timeout=20000)
+            # Wait for full page load
+            page.wait_for_load_state("networkidle", timeout=20000)
+            page.wait_for_timeout(2000)  # Extra 2s to ensure JS finishes executing
+            # Capture full HTML then parse
+            html = page.content()
+            browser.close()
+        print("🔥 Playwright HTML length:", len(html))
 
-        print("[Scrape Debug] URL:", url)
-        print("[Scrape Debug] Status:", response.status_code)
-        print("[Scrape Debug] Final URL:", response.url)
-        print("[Scrape Debug] Content-Type:", response.headers.get("content-type"))
-        print("[Scrape Debug] HTML length:", len(response.text))
-        print("[Scrape Debug] First 500 chars:", response.text[:500])
-
-        response.raise_for_status()
-
-        soup = BeautifulSoup(response.text, "html.parser")
-
-        for tag in soup(["script", "style", "nav", "footer", "header", "noscript"]):
+        soup = BeautifulSoup(html, "html.parser")
+        for tag in soup(["script", "style", "nav", "footer", "header"]):
             tag.decompose()
-
         content = soup.get_text(separator="\n", strip=True)
-
-        print(f"[Scrape] Fetched text length: {len(content)}")
-
-        if len(content) < 200:
-            print("[Scrape] Content too short. Probably blocked or JS-rendered.")
-            return ""
-
+        print(f"[Scrape] ✅ Fetched {len(content)} chars from {url}")
         return content
-
     except Exception as e:
-        print(f"[Scrape] Error: {e} | URL: {url}")
+        print(f"[Scrape] ❌ Error: {e} | URL: {url}")
         return ""
 
 def get_incomplete_rows() -> list[dict]:
