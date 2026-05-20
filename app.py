@@ -435,7 +435,11 @@ elif page == "📝 Cover Letter":
     url = st.text_input("Job URL", placeholder="https://jobs.ashbyhq.com/...")
     jd_manual = st.text_area("Or paste JD manually", height=200, placeholder="Paste the job description here if the URL can't be fetched automatically...")
 
+    st.write("DEBUG url:", url)
+    st.write("DEBUG jd_manual length:", len(jd_manual))
+    
     if st.button("✨ Generate Cover Letter"):
+        st.write("DEBUG: Cover Letter button clicked")
         if not url and not jd_manual:
             st.warning("Please provide a URL or paste the JD.")
         else:
@@ -446,7 +450,9 @@ elif page == "📝 Cover Letter":
 
                     if url and not jd_manual:
                         from tools import scrape_job_url
+                        st.write("DEBUG: about to call scrape_job_url")
                         jd = scrape_job_url(url)
+                        st.write("DEBUG: scraped JD length:", len(jd))
                         if not jd or len(jd) < 200:
                             jd = jd_manual
                     else:
