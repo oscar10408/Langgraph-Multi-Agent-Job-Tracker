@@ -225,7 +225,7 @@ def scrape_job_url(url: str) -> str:
 
     # 2. Fallback to Playwright for dynamic JS-rendered pages
     try:
-        # from playwright.sync_api import sync_playwright
+        from playwright.sync_api import sync_playwright
 
         with sync_playwright() as p:
             browser = p.chromium.launch(
