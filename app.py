@@ -224,7 +224,7 @@ with st.sidebar:
 
     page = st.radio(
         "Navigation",
-        ["📊 Dashboard", "📋 Applications", "📧 Email Scanner", "📝 Cover Letter", "🎯 Interview Prep", "🔍 Job Match", "💬 Chat"],
+        ["📊 Dashboard", "📋 Applications", "📧 Email Scanner Demo", "📝 Cover Letter", "🎯 Interview Prep", "🔍 Job Match", "💬 Chat"],
         label_visibility="collapsed"
     )
 
@@ -404,23 +404,43 @@ elif page == "📋 Applications":
 # ══════════════════════════════════════════════════════════
 # PAGE: EMAIL SCANNER
 # ══════════════════════════════════════════════════════════
-elif page == "📧 Email Scanner":
-    st.markdown("## Email Scanner")
-    st.markdown("Scan your Gmail for job application updates and auto-update your Excel.")
+elif page == "📧 Email Scanner Demo":
+    st.markdown("## Email Scanner Demo")
+    st.markdown(
+        "Demo of an email-status extraction workflow for job applications. "
+        "For privacy reasons, the public version does not connect to Gmail."
+    )
 
-    col1, col2 = st.columns([1, 2])
-    with col1:
-        num_emails = st.number_input("Emails to scan", min_value=5, max_value=200, value=50, step=5)
+    st.info(
+        "Public demo mode: this page uses sample email snippets only. "
+        "No Gmail account is connected and no real emails are scanned."
+    )
 
-    if st.button("🔍 Scan emails now", use_container_width=False):
-        with st.spinner("Connecting to Gmail and scanning emails..."):
-            try:
-                from tools import scan_emails_for_status
-                result = scan_emails_for_status(max_results=num_emails)
-                st.success(result)
-                st.cache_data.clear()
-            except Exception as e:
-                st.error(f"Error: {e}")
+    sample_emails = [
+        {
+            "Sender": "recruiting@company.com",
+            "Subject": "Next steps for your Data Scientist application",
+            "Detected Status": "Interview",
+            "Suggested Update": "Move Company A to Interviewed"
+        },
+        {
+            "Sender": "careers@startup.com",
+            "Subject": "Thank you for applying",
+            "Detected Status": "Applied",
+            "Suggested Update": "Confirm Company B as Applied"
+        },
+        {
+            "Sender": "talent@company.com",
+            "Subject": "Update on your application",
+            "Detected Status": "Rejected",
+            "Suggested Update": "Move Company C to Rejected"
+        }
+    ]
+
+    st.dataframe(pd.DataFrame(sample_emails), use_container_width=True)
+
+    if st.button("🔍 Run demo scan", use_container_width=False):
+        st.success("Demo scan complete. No real Gmail data was accessed.")
 
 
 # ══════════════════════════════════════════════════════════
@@ -654,20 +674,18 @@ elif page == "💬 Chat":
     # Quick action buttons
     st.markdown("---")
     st.markdown("**Quick actions**")
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
     with col1:
         if st.button("📋 Show latest 5 apps", use_container_width=True):
             st.session_state.chat_history.append({"role": "user", "content": "show me my latest 5 applications"})
             st.rerun()
+
     with col2:
         if st.button("📊 Job search analysis", use_container_width=True):
             st.session_state.chat_history.append({"role": "user", "content": "how is my job search going?"})
             st.rerun()
+
     with col3:
-        if st.button("📧 Scan 20 emails", use_container_width=True):
-            st.session_state.chat_history.append({"role": "user", "content": "scan my last 20 emails for job updates"})
-            st.rerun()
-    with col4:
         if st.button("🗑️ Clear chat", use_container_width=True):
             st.session_state.chat_history = []
             st.session_state.agent_state = {
