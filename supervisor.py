@@ -8,7 +8,6 @@ Supervisor Agent is responsible for:
 
 Architecture:
 - ExcelAgent:   query, add, edit, analyze
-- EmailAgent:   email scan
 - CareerAgent:  cover letter, interview prep, job match
 - ScraperAgent: scrape JD from URLs
 """
@@ -38,12 +37,10 @@ def build_supervisor():
     llm = ChatGroq(model="meta-llama/llama-4-scout-17b-16e-instruct")
 
     from agents.excel_agent import build_excel_agent
-    from agents.email_agent import build_email_agent
     from agents.career_agent import build_career_agent
     from agents.scraper_agent import build_scraper_agent
 
     excel_agent = build_excel_agent()
-    email_agent = build_email_agent()
     career_agent = build_career_agent()
     scraper_agent = build_scraper_agent()
 
@@ -54,18 +51,17 @@ def build_supervisor():
 Decide which agent should handle this request:
 
 - "excel": query applications, add new application, edit/update application status, analyze job search progress
-- "email": scan Gmail emails to update application statuses
 - "career": generate cover letter, prepare for interview, score job match/fit
 - "scraper": fill in missing job details from URLs in Excel
 
 User message: "{user_message}"
 
-Reply with ONLY one word: excel, email, career, or scraper."""
+Reply with ONLY one word: excel, career, or scraper."""
 
         response = llm.invoke([HumanMessage(content=prompt)])
         next_agent = response.content.strip().lower()
 
-        if next_agent not in ["excel", "email", "career", "scraper"]:
+        if next_agent not in ["excel", "career", "scraper"]:
             next_agent = "excel"
 
         print(f"[Supervisor] Routing to: {next_agent} agent")
@@ -85,13 +81,6 @@ Reply with ONLY one word: excel, email, career, or scraper."""
         result = excel_agent.invoke({
             "messages": state["messages"],
             "intent": "",
-            "result": "",
-        })
-        return {"messages": [result["messages"][-1]]}
-
-    def run_email_agent(state: SupervisorState) -> SupervisorState:
-        result = email_agent.invoke({
-            "messages": state["messages"],
             "result": "",
         })
         return {"messages": [result["messages"][-1]]}
@@ -124,7 +113,6 @@ Reply with ONLY one word: excel, email, career, or scraper."""
 
     builder.add_node("supervisor", supervisor_node)
     builder.add_node("excel_agent", run_excel_agent)
-    builder.add_node("email_agent", run_email_agent)
     builder.add_node("career_agent", run_career_agent)
     builder.add_node("scraper_agent", run_scraper_agent)
 
@@ -134,13 +122,11 @@ Reply with ONLY one word: excel, email, career, or scraper."""
         route_to_agent,
         {
             "excel": "excel_agent",
-            "email": "email_agent",
             "career": "career_agent",
             "scraper": "scraper_agent",
         }
     )
     builder.add_edge("excel_agent", END)
-    builder.add_edge("email_agent", END)
     builder.add_edge("career_agent", END)
     builder.add_edge("scraper_agent", END)
 
