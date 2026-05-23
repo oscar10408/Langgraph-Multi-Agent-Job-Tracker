@@ -23,10 +23,8 @@ import streamlit as st
 from bs4 import BeautifulSoup
 from docx import Document
 from docx.shared import Inches
-from docx2pdf import convert
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from langchain_core.messages import HumanMessage
 from langchain_groq import ChatGroq
@@ -379,13 +377,14 @@ def save_cover_letter(company: str, position: str, content: str) -> str:
     filepath = os.path.join(output_dir, filename)
     doc.save(filepath)
 
-    # Also export as PDF
+    # Also export as PDF (docx2pdf requires LibreOffice; skip silently if unavailable)
     try:
+        from docx2pdf import convert
         pdf_path = filepath.replace(".docx", ".pdf")
         convert(filepath, pdf_path)
         print(f"[CoverLetter] PDF saved to: {pdf_path}")
     except Exception as e:
-        print(f"[CoverLetter] ⚠️ PDF conversion failed: {e}")
+        print(f"[CoverLetter] ⚠️ PDF conversion skipped: {e}")
 
     return filepath
 
@@ -578,13 +577,14 @@ def save_interview_prep(company: str, position: str, content: str) -> str:
     doc.save(filepath)
     print(f"[InterviewPrep] Word saved to: {filepath}")
 
+    # Also export as PDF (docx2pdf requires LibreOffice; skip silently if unavailable)
     try:
-
+        from docx2pdf import convert
         pdf_path = filepath.replace(".docx", ".pdf")
         convert(filepath, pdf_path)
         print(f"[InterviewPrep] PDF saved to: {pdf_path}")
     except Exception as e:
-        print(f"[InterviewPrep] ⚠️ PDF conversion failed: {e}")
+        print(f"[InterviewPrep] ⚠️ PDF conversion skipped: {e}")
 
     return filepath
 
