@@ -23,6 +23,7 @@ import re
 from docx.shared import Inches
 import shutil
 from playwright.sync_api import sync_playwright
+import streamlit as st
 
 EXCEL_PATH = os.path.join(os.path.dirname(__file__), "data", "Record_of_job_AI.xlsx")
 
