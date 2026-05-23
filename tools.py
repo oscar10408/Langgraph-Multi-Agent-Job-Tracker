@@ -10,20 +10,27 @@ Each function here has a single responsibility:
 
 To switch to a real API (Notion, Airtable, etc.), only this file needs to change.
 """
-
+import base64
 import json
 import os
-from datetime import date
+import re
 import shutil
-from openpyxl import load_workbook
-# from playwright.sync_api import sync_playwright
+from datetime import date
+
+import requests
+import streamlit as st
 from bs4 import BeautifulSoup
 from docx import Document
-import re
 from docx.shared import Inches
-import shutil
+from docx2pdf import convert
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+from langchain_core.messages import HumanMessage
+from langchain_groq import ChatGroq
+from openpyxl import load_workbook
 from playwright.sync_api import sync_playwright
-import streamlit as st
 
 EXCEL_PATH = os.path.join(os.path.dirname(__file__), "data", "Record_of_job_AI.xlsx")
 
@@ -178,9 +185,6 @@ def update_application(company: str = None, role: str = None,
     return f"✅ Updated: {row_data.get('Company')} - {row_data.get('Position')}"
 
 
-import requests
-from bs4 import BeautifulSoup
-
 def scrape_job_url(url: str) -> str:
     """
     Scrape job description from a URL.
@@ -188,7 +192,7 @@ def scrape_job_url(url: str) -> str:
     For others: fall back to Playwright.
     """
 
-    # ── Workday: 直接用 requests 抓 meta 標籤 ──
+    # ── Workday: fetch JD directly from meta tags via requests ──
     if "myworkdayjobs.com" in url:
         try:
             headers = {
@@ -201,7 +205,7 @@ def scrape_job_url(url: str) -> str:
             resp = requests.get(url, headers=headers, timeout=15)
             soup = BeautifulSoup(resp.text, "html.parser")
 
-            # Workday 把完整 JD 塞在 meta[name="description"] 或 meta[property="og:description"]
+            # Workday embeds the full JD in meta[name="description"] or meta[property="og:description"]
             content = ""
             for attr in [("name", "description"), ("property", "og:description")]:
                 tag = soup.find("meta", {attr[0]: attr[1]})
@@ -216,9 +220,8 @@ def scrape_job_url(url: str) -> str:
             print(f"[Scrape] ❌ Workday requests failed: {e}")
             # fall through to Playwright
 
-    # ── 其他網站：用 Playwright ──
+    # ── Other sites: fall back to Playwright ──
     try:
-        from playwright.sync_api import sync_playwright
         with sync_playwright() as p:
             browser = p.chromium.launch(
                 headless=True,
@@ -296,26 +299,26 @@ def update_excel_row(row_index: int, company: str = None,
 
 def load_profile() -> dict:
     """
-    從 data/profile.json 載入用戶背景資料。
+    Load user background data from data/profile.json.
     """
     profile_path = os.path.join(os.path.dirname(__file__), "data", "profile.json")
     with open(profile_path, "r", encoding="utf-8") as f:
         return json.load(f)
-    
+
 
 def save_cover_letter(company: str, position: str, content: str) -> str:
     """
-    建立以公司名稱命名的資料夾，並將 cover letter 存成 Word 檔。
+    Create a folder named after the company and save the cover letter as a Word file.
     """
-    # 清理公司名稱，移除不能用於資料夾名稱的字元
+    # Sanitize company and position names by removing characters invalid in folder/file names
     safe_company = re.sub(r'[\\/*?:"<>|]', "", company).strip()
     safe_position = re.sub(r'[\\/*?:"<>|]', "", position).strip()
 
-    # 建立資料夾路徑
+    # Build output directory path
     output_dir = os.path.join(os.path.dirname(__file__), "cover_letters", safe_company)
     os.makedirs(output_dir, exist_ok=True)
 
-    # 建立 Word 文件
+    # Create Word document
     doc = Document()
     section = doc.sections[0]
     section.top_margin = Inches(0.5)
@@ -326,20 +329,19 @@ def save_cover_letter(company: str, position: str, content: str) -> str:
     doc.add_heading(f"Cover Letter — {safe_position}", level=1)
     doc.add_paragraph(f"Company: {safe_company}")
     doc.add_paragraph(f"Position: {safe_position}")
-    doc.add_paragraph("")  # 空行
+    doc.add_paragraph("")  # blank line
 
     for para in content.split("\n"):
         if para.strip():
             doc.add_paragraph(para.strip())
 
-    # 存檔
+    # Save Word file
     filename = f"Cover_Letter_{safe_position.replace(' ', '_')}.docx"
     filepath = os.path.join(output_dir, filename)
     doc.save(filepath)
 
-    # 另存 PDF
+    # Also export as PDF
     try:
-        from docx2pdf import convert
         pdf_path = filepath.replace(".docx", ".pdf")
         convert(filepath, pdf_path)
         print(f"[CoverLetter] PDF saved to: {pdf_path}")
@@ -348,29 +350,21 @@ def save_cover_letter(company: str, position: str, content: str) -> str:
 
     return filepath
 
-
-
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
-from googleapiclient.discovery import build
-import base64
-
 GMAIL_SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 
 def _get_gmail_service():
-    # 從 st.secrets 讀取 token
+    # Load token from st.secrets
     token_dict = dict(st.secrets["gmail_token"])
-    # scopes 在 toml 裡是 array，需轉成 list of str
+    # scopes are stored as an array in toml; convert to list of str
     token_dict["scopes"] = list(token_dict["scopes"])
 
     creds = Credentials.from_authorized_user_info(token_dict, GMAIL_SCOPES)
 
-    # Token 過期就自動 refresh（不需要開瀏覽器）
+    # Refresh automatically if token is expired (no browser needed)
     if creds.expired and creds.refresh_token:
         creds.refresh(Request())
-        # ⚠️ 注意：refresh 後新 token 只存在記憶體，reboot 後要重新 refresh
-        # 這是可以接受的，因為 refresh_token 長期有效
+        # ⚠️ Note: refreshed token only lives in memory; will be re-refreshed after reboot
+        # This is acceptable since the refresh_token remains valid long-term
 
     return build("gmail", "v1", credentials=creds)
 
@@ -379,8 +373,7 @@ def scan_emails_for_status(max_results: int = 50) -> str:
     Scans recent emails to find job application status updates.
     Uses LLM to extract company name and status, reducing false positives.
     """
-    from langchain_groq import ChatGroq
-    from langchain_core.messages import HumanMessage
+
     _llm = ChatGroq(model="meta-llama/llama-4-scout-17b-16e-instruct")
 
     service = _get_gmail_service()
@@ -495,7 +488,6 @@ def scan_emails_for_status(max_results: int = 50) -> str:
             updates.append(f"  {detected_company} → {new_status} (from: {subject[:50]})")
 
     if updates:
-        import shutil
         tmp = EXCEL_PATH + ".tmp"
         wb.save(tmp)
         shutil.move(tmp, EXCEL_PATH)
@@ -539,7 +531,7 @@ def save_interview_prep(company: str, position: str, content: str) -> str:
     print(f"[InterviewPrep] Word saved to: {filepath}")
 
     try:
-        from docx2pdf import convert
+
         pdf_path = filepath.replace(".docx", ".pdf")
         convert(filepath, pdf_path)
         print(f"[InterviewPrep] PDF saved to: {pdf_path}")
@@ -591,7 +583,6 @@ def save_match_score_to_excel(row_index: int, score: str) -> None:
 
     ws.cell(row=row_index, column=col_map["Match Score"]).value = score
 
-    import shutil
     tmp = EXCEL_PATH + ".tmp"
     wb.save(tmp)
     shutil.move(tmp, EXCEL_PATH)
