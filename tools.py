@@ -356,28 +356,22 @@ from googleapiclient.discovery import build
 import base64
 
 GMAIL_SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
-CREDENTIALS_PATH = os.path.join(os.path.dirname(__file__), "data", "credentials.json")
-TOKEN_PATH = os.path.join(os.path.dirname(__file__), "data", "token.json")
-
 
 def _get_gmail_service():
-    """
-    建立 Gmail API 連線。
-    第一次執行會開瀏覽器要求授權，之後用 token.json 自動登入。
-    """
-    creds = None
-    if os.path.exists(TOKEN_PATH):
-        creds = Credentials.from_authorized_user_file(TOKEN_PATH, GMAIL_SCOPES)
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_PATH, GMAIL_SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open(TOKEN_PATH, "w") as token:
-            token.write(creds.to_json())
-    return build("gmail", "v1", credentials=creds)
+    # 從 st.secrets 讀取 token
+    token_dict = dict(st.secrets["gmail_token"])
+    # scopes 在 toml 裡是 array，需轉成 list of str
+    token_dict["scopes"] = list(token_dict["scopes"])
 
+    creds = Credentials.from_authorized_user_info(token_dict, GMAIL_SCOPES)
+
+    # Token 過期就自動 refresh（不需要開瀏覽器）
+    if creds.expired and creds.refresh_token:
+        creds.refresh(Request())
+        # ⚠️ 注意：refresh 後新 token 只存在記憶體，reboot 後要重新 refresh
+        # 這是可以接受的，因為 refresh_token 長期有效
+
+    return build("gmail", "v1", credentials=creds)
 
 def scan_emails_for_status(max_results: int = 50) -> str:
     """
