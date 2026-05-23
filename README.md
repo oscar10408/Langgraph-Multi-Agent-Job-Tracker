@@ -14,18 +14,11 @@ Instead of manually updating spreadsheets, just ask in natural language or use t
 
 ## Architecture
 
-```
-User Input (CLI or Streamlit UI)
-    ↓
-[Supervisor Agent]  ← Routes to the appropriate sub-agent
-    ↓
-┌──────────────┬──────────────┬──────────────┬──────────────┐
-↓              ↓              ↓              ↓
-[ExcelAgent]  [EmailAgent]  [CareerAgent]  [ScraperAgent]
-query/add      Gmail scan    cover letter   fetch JD
-edit/analyze               interview prep  from URLs
-                            job match
-```
+![Multi-Agent Architecture](Images/AI-Agent-flowchart.png)
+
+### Dashboard
+
+![Streamlit Dashboard](Images/job-tracker.png)
 
 ### Sub-agents
 
