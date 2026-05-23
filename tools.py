@@ -11,6 +11,7 @@ Each function here has a single responsibility:
 To switch to a real API (Notion, Airtable, etc.), only this file needs to change.
 """
 import base64
+import io
 import json
 import os
 import re
@@ -25,19 +26,58 @@ from docx.shared import Inches
 from docx2pdf import convert
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from langchain_core.messages import HumanMessage
 from langchain_groq import ChatGroq
 from openpyxl import load_workbook
 from playwright.sync_api import sync_playwright
 
-EXCEL_PATH = os.path.join(os.path.dirname(__file__), "data", "Record_of_job_AI.xlsx")
+# ── Default (owner) paths ───────────────────────────────────
+_DEFAULT_EXCEL_PATH = os.path.join(os.path.dirname(__file__), "data", "Record_of_job_AI.xlsx")
+_DEFAULT_PROFILE_PATH = os.path.join(os.path.dirname(__file__), "data", "profile.json")
+
+# ---------------------------------------------------------------------------
+# Session-aware helpers
+# These functions check st.session_state for a custom upload first,
+# and fall back to the owner's default files if nothing is uploaded.
+# ---------------------------------------------------------------------------
+
+def _get_excel_path() -> str:
+    """Return the active Excel path (custom upload takes priority)."""
+    return _DEFAULT_EXCEL_PATH
+
 
 def _load_excel() -> tuple:
-    """Load Excel file and return (workbook, worksheet)."""
-    wb = load_workbook(EXCEL_PATH)
+    """
+    Load Excel and return (workbook, worksheet).
+    Uses in-memory bytes from st.session_state if a custom file was uploaded,
+    otherwise reads from the default path on disk.
+    """
+    custom_bytes = st.session_state.get("custom_excel_bytes")
+    if custom_bytes:
+        wb = load_workbook(io.BytesIO(custom_bytes))
+    else:
+        wb = load_workbook(_DEFAULT_EXCEL_PATH)
     ws = wb.active
     return wb, ws
+
+
+def _save_excel(wb) -> None:
+    """
+    Save workbook back to the correct destination.
+    For custom sessions: update the in-memory bytes in st.session_state.
+    For the default session: write directly to disk (with a tmp swap).
+    """
+    custom_bytes = st.session_state.get("custom_excel_bytes")
+    if custom_bytes is not None:
+        buf = io.BytesIO()
+        wb.save(buf)
+        st.session_state["custom_excel_bytes"] = buf.getvalue()
+    else:
+        tmp = _DEFAULT_EXCEL_PATH + ".tmp"
+        wb.save(tmp)
+        shutil.move(tmp, _DEFAULT_EXCEL_PATH)
 
 
 def _get_headers(ws) -> list:
@@ -114,9 +154,7 @@ def add_application(company: str, role: str, notes: str = "") -> str:
     wb, ws = _load_excel()
     today = date.today().isoformat()
     ws.append([company, role, notes, "", today, "applied"])
-    tmp = EXCEL_PATH + ".tmp"
-    wb.save(tmp)
-    shutil.move(tmp, EXCEL_PATH)
+    _save_excel(wb)
 
     return f"✅ Added: {company} - {role}"
 
@@ -177,7 +215,7 @@ def update_application(company: str = None, role: str = None,
     if status and "Status" in col_map:
         ws.cell(row=target_row, column=col_map["Status"]).value = status
 
-    wb.save(EXCEL_PATH)
+    _save_excel(wb)
 
     row_data = dict(zip(headers, list(ws.iter_rows(min_row=target_row,
                     max_row=target_row, values_only=True))[0]))
@@ -277,7 +315,7 @@ def update_excel_row(row_index: int, company: str = None,
     Updates Company, Position, and JD fields for a specific Excel row.
     Only updates fields with non-None values; None means skip.
     """
-    wb = load_workbook(EXCEL_PATH)
+    wb, _ = _load_excel()
     ws = wb.active
 
     headers = [cell.value for cell in ws[1]]
@@ -290,18 +328,20 @@ def update_excel_row(row_index: int, company: str = None,
     if jd and "JD" in col_map:
         ws.cell(row=row_index, column=col_map["JD"]).value = jd
 
-    tmp = EXCEL_PATH + ".tmp"
-    wb.save(tmp)
-    shutil.move(tmp, EXCEL_PATH)
+    _save_excel(wb)
 
 
 
 def load_profile() -> dict:
     """
-    Load user background data from data/profile.json.
+    Load user profile.
+    Returns the custom profile from st.session_state if one has been uploaded,
+    otherwise falls back to the owner's default profile.json on disk.
     """
-    profile_path = os.path.join(os.path.dirname(__file__), "data", "profile.json")
-    with open(profile_path, "r", encoding="utf-8") as f:
+    custom = st.session_state.get("custom_profile")
+    if custom:
+        return custom
+    with open(_DEFAULT_PROFILE_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -352,10 +392,21 @@ def save_cover_letter(company: str, position: str, content: str) -> str:
 GMAIL_SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 
 def _get_gmail_service():
-    # Load token from st.secrets
-    token_dict = dict(st.secrets["gmail_token"])
-    # scopes are stored as an array in toml; convert to list of str
-    token_dict["scopes"] = list(token_dict["scopes"])
+    """
+    Build a Gmail API service client.
+    Priority:
+      1. Custom token uploaded by the user in this session (st.session_state)
+      2. Owner's token stored in st.secrets (default)
+    """
+    custom_token = st.session_state.get("custom_gmail_token")
+    if custom_token:
+        token_dict = dict(custom_token)
+    else:
+        token_dict = dict(st.secrets["gmail_token"])
+
+    # scopes may be a toml array or a plain list; normalise to list of str
+    if "scopes" in token_dict:
+        token_dict["scopes"] = list(token_dict["scopes"])
 
     creds = Credentials.from_authorized_user_info(token_dict, GMAIL_SCOPES)
 
@@ -487,9 +538,7 @@ def scan_emails_for_status(max_results: int = 50) -> str:
             updates.append(f"  {detected_company} → {new_status} (from: {subject[:50]})")
 
     if updates:
-        tmp = EXCEL_PATH + ".tmp"
-        wb.save(tmp)
-        shutil.move(tmp, EXCEL_PATH)
+        _save_excel(wb)
         return f"✅ Updated {len(updates)} applications:\n" + "\n".join(updates)
     else:
         return f"📭 Scanned {len(messages)} emails, no status updates detected."
@@ -582,9 +631,7 @@ def save_match_score_to_excel(row_index: int, score: str) -> None:
 
     ws.cell(row=row_index, column=col_map["Match Score"]).value = score
 
-    tmp = EXCEL_PATH + ".tmp"
-    wb.save(tmp)
-    shutil.move(tmp, EXCEL_PATH)
+    _save_excel(wb)
     print(f"[JobMatch] ✅ Score {score} saved to Excel row {row_index}")
 
 

@@ -16,8 +16,6 @@ import plotly.graph_objects as go
 from openpyxl import load_workbook
 from datetime import date
 import os
-import sys
-
 import subprocess
 import sys
 
@@ -26,7 +24,6 @@ def install_playwright():
     subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True)
 
 install_playwright()
-
 
 if "GROQ_API_KEY" in st.secrets:
     os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
@@ -232,12 +229,25 @@ def status_badge(status):
 # ── Sidebar ────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("### 💼 Job Tracker")
-    st.markdown("**Oscar Shih** · Ann Arbor, MI")
+
+    # Show whose profile is active
+    using_custom = st.session_state.get("using_custom_profile", False)
+    if using_custom:
+        active_name = st.session_state.get("custom_profile", {}).get("name", "Custom user")
+        st.markdown(f"**{active_name}**")
+    else:
+        from tools import load_profile
+        try:
+            _owner = load_profile()
+            st.markdown(f"**{_owner.get('name', 'Owner')}** · {_owner.get('location', '')}")
+        except Exception:
+            st.markdown("**Job Tracker**")
+
     st.divider()
 
     page = st.radio(
         "Navigation",
-        ["📊 Dashboard", "📋 Applications", "📧 Email Scanner", "📝 Cover Letter", "🎯 Interview Prep", "🔍 Job Match", "💬 Chat"],
+        ["📊 Dashboard", "📋 Applications", "📧 Email Scanner", "📝 Cover Letter", "🎯 Interview Prep", "🔍 Job Match", "💬 Chat", "⚙️ Setup"],
         label_visibility="collapsed"
     )
 
@@ -688,3 +698,11 @@ elif page == "💬 Chat":
                 "result": "", "pending_action": "", "pending_url": "", "pending_jd": ""
             }
             st.rerun()
+
+
+# ══════════════════════════════════════════════════════════
+# PAGE: SETUP
+# ══════════════════════════════════════════════════════════
+elif page == "⚙️ Setup":
+    from onboarding import render_setup_page
+    render_setup_page()
