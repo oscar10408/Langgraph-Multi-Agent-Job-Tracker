@@ -417,13 +417,18 @@ def _get_gmail_service():
 
     return build("gmail", "v1", credentials=creds)
 
+_BATCH_SIZE = 10  # Number of emails per LLM call; keeps RPM well under Groq's limit
+
+
 def scan_emails_for_status(max_results: int = 50) -> str:
     """
     Scans recent emails to find job application status updates.
-    Uses LLM to extract company name and status, reducing false positives.
+    Batches emails into groups before calling the LLM to stay within
+    Groq's free-tier RPM limit. Raises a clear error if the limit is exceeded.
     """
-
     _llm = ChatGroq(model="meta-llama/llama-4-scout-17b-16e-instruct")
+    profile = load_profile()
+    applicant_name = profile.get("name", "the applicant")
 
     service = _get_gmail_service()
 
@@ -448,8 +453,8 @@ def scan_emails_for_status(max_results: int = 50) -> str:
         if company:
             company_index[company.lower()] = (i, d)
 
-    updates = []
-
+    # ── Fetch all email metadata first ──────────────────────
+    email_items = []
     for msg in messages:
         msg_data = service.users().messages().get(
             userId="me", id=msg["id"], format="full"
@@ -457,9 +462,8 @@ def scan_emails_for_status(max_results: int = 50) -> str:
 
         headers_list = msg_data["payload"].get("headers", [])
         subject = next((h["value"] for h in headers_list if h["name"] == "Subject"), "")
-        sender = next((h["value"] for h in headers_list if h["name"] == "From"), "")
+        sender  = next((h["value"] for h in headers_list if h["name"] == "From"), "")
 
-        # Extract email body text
         body = ""
         payload = msg_data["payload"]
         if "parts" in payload:
@@ -472,75 +476,98 @@ def scan_emails_for_status(max_results: int = 50) -> str:
             data = payload["body"].get("data", "")
             body = base64.urlsafe_b64decode(data).decode("utf-8", errors="ignore")
 
-        # Use LLM to extract both company name and application status
-        classify_prompt = f"""You are analyzing a job application email for Oscar Shih.
+        email_items.append({"subject": subject, "sender": sender, "body": body[:1500]})
 
-        Email:
-        Subject: {subject}
-        From: {sender}
-        Body: {body}
+    # ── Process in batches ───────────────────────────────────
+    updates = []
+    batches = [email_items[i:i + _BATCH_SIZE] for i in range(0, len(email_items), _BATCH_SIZE)]
 
-        Answer these two questions:
-        1. What is the HIRING company's name?
-        - NOT email platforms: Workday, Dayforce, Indeed, LinkedIn, Microsoft Teams, Handshake
-        - NOT if this is a job recommendation or advertisement (Handshake recommending jobs, recruiter cold outreach)
-        - Only if this email is about an application Oscar Shih already submitted
+    for batch_idx, batch in enumerate(batches):
+        # Build a single prompt containing all emails in this batch
+        emails_block = ""
+        for idx, item in enumerate(batch):
+            emails_block += (
+                f"\n--- EMAIL {idx + 1} ---\n"
+                f"Subject: {item['subject']}\n"
+                f"From: {item['sender']}\n"
+                f"Body: {item['body']}\n"
+            )
 
-        2. What is the application status?
+        batch_prompt = f"""You are analyzing a batch of job application emails for {applicant_name}.
 
-        Return ONLY in this exact format:
-        company: <hiring company name, or empty if not applicable>
-        status: <interviewed / offered / rejected / applied / ignore>
+{emails_block}
 
-        Status rules:
-        - interviewed: scheduling or confirming an interview
-        - offered: job offer or candidate is selected
-        - rejected: not selected, moving forward with other candidates
-        - applied: confirming application was received
-        - ignore: job recommendations, advertisements, cold outreach, newsletters, or unrelated emails"""
+For EACH email, extract:
+1. The HIRING company name (NOT email platforms like Workday, Indeed, LinkedIn, Handshake).
+   Leave empty if this is a job recommendation, advertisement, cold outreach, or unrelated email.
+2. The application status.
 
-        classify_response = _llm.invoke([HumanMessage(content=classify_prompt)])
-        classify_text = classify_response.content.strip()
+Return ONLY a JSON array with exactly {len(batch)} objects in this format:
+[
+  {{"company": "<name or empty string>", "status": "<interviewed|offered|rejected|applied|ignore>"}},
+  ...
+]
 
-        detected_company, new_status = None, None
-        for line in classify_text.split("\n"):
-            if line.startswith("company:"):
-                val = line.split(":", 1)[1].strip()
-                detected_company = val if val else None
-            elif line.startswith("status:"):
-                val = line.split(":", 1)[1].strip().lower()
-                new_status = val if val in ["interviewed", "offered", "rejected"] else None
+Status rules:
+- interviewed: scheduling or confirming an interview
+- offered: job offer or candidate selection
+- rejected: not moving forward / other candidates selected
+- applied: application received confirmation
+- ignore: ads, newsletters, cold outreach, unrelated"""
 
-        # Skip if ignored or no usable information extracted
-        if not detected_company or not new_status:
-            print(f"[EmailScan] Skipped: {subject}")
+        try:
+            try:
+                raw = _llm.invoke([HumanMessage(content=batch_prompt)]).content.strip()
+            except Exception as e:
+                if "429" in str(e):
+                    processed = batch_idx * _BATCH_SIZE
+                    raise RuntimeError(
+                        f"⚠️ Groq rate limit reached after scanning {processed} emails. "
+                        f"You've hit the free-tier RPM limit (30 req/min). "
+                        f"Please wait ~1 minute and try again with a smaller batch, "
+                        f"or upgrade your Groq plan at https://console.groq.com/settings/billing"
+                    ) from None
+                raise
+            # Strip markdown fences if present
+            raw = re.sub(r"```(?:json)?|```", "", raw).strip()
+            batch_results = json.loads(raw)
+        except Exception as e:
+            print(f"[EmailScan] ⚠️ Batch {batch_idx + 1} failed: {e}")
             continue
 
-        print(f"[EmailScan] Detected: {detected_company} → {new_status} | {subject[:50]}")
+        for idx, (item, result) in enumerate(zip(batch, batch_results)):
+            detected_company = str(result.get("company") or "").strip()
+            new_status = str(result.get("status") or "").strip().lower()
 
-        # Find the closest matching company in the index
-        target_row = None
-        for excel_company_lower, (i, d) in company_index.items():
-            if (detected_company.lower() in excel_company_lower or
-                excel_company_lower in detected_company.lower()):
-                target_row = (i, d)
-                break
+            if not detected_company or new_status not in ["interviewed", "offered", "rejected"]:
+                print(f"[EmailScan] Skipped: {item['subject'][:60]}")
+                continue
 
-        if not target_row:
-            print(f"[EmailScan] ⚠️ '{detected_company}' not found in Excel, skipping.")
-            continue
+            print(f"[EmailScan] Detected: {detected_company} → {new_status} | {item['subject'][:50]}")
 
-        i, d = target_row
-        current_status = str(d.get("Status") or "").lower()
-        if current_status != new_status:
-            ws.cell(row=i, column=col_map["Status"]).value = new_status
-            updates.append(f"  {detected_company} → {new_status} (from: {subject[:50]})")
+            # Match against company index
+            target_row = None
+            for excel_company_lower, (i, d) in company_index.items():
+                if (detected_company.lower() in excel_company_lower or
+                        excel_company_lower in detected_company.lower()):
+                    target_row = (i, d)
+                    break
+
+            if not target_row:
+                print(f"[EmailScan] ⚠️ '{detected_company}' not found in Excel, skipping.")
+                continue
+
+            i, d = target_row
+            current_status = str(d.get("Status") or "").lower()
+            if current_status != new_status:
+                ws.cell(row=i, column=col_map["Status"]).value = new_status
+                updates.append(f"  {detected_company} → {new_status} (from: {item['subject'][:50]})")
 
     if updates:
         _save_excel(wb)
         return f"✅ Updated {len(updates)} applications:\n" + "\n".join(updates)
     else:
-        return f"📭 Scanned {len(messages)} emails, no status updates detected."
+        return f"📭 Scanned {len(email_items)} emails, no status updates detected."
 
 
 
