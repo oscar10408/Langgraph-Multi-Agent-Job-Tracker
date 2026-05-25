@@ -286,75 +286,132 @@ if page == "📊 Dashboard":
 
     st.markdown("---")
 
-    col_left, col_right = st.columns([1.5, 1])
+    # ── Build status counts (shared by both charts) ──────────
+    STATUS_COLORS = {
+        "Interviewed": "#1d4ed8",
+        "Applied":     "#4b5563",
+        "Rejected":    "#991b1b",
+        "Offered":     "#166534",
+        "Follow-up Q": "#7e22ce",
+        "Wishlist":    "#854d0e",
+        "Unknown":     "#6b7280",
+    }
 
-    with col_left:
-        st.markdown('<div class="section-header">Application status breakdown</div>', unsafe_allow_html=True)
+    status_map = {
+        "interviewed": "Interviewed",
+        "applied":     "Applied",
+        "rejected":    "Rejected",
+        "offered":     "Offered",
+        "unknown":     "Unknown",
+        "wishlist":    "Wishlist",
+        "follow-up q": "Follow-up Q",
+    }
 
-        status_map = {
-            "interviewed": "Interviewed",
-            "applied": "Applied",
-            "rejected": "Rejected",
-            "offered": "Offered",
-            "unknown": "Unknown",
-            "wishlist": "Wishlist",
-            "follow-up q": "Follow-up Q",
-        }
+    status_counts = {}
+    for s, label in status_map.items():
+        count = len(df[df["Status"].str.contains(s, case=False, na=False)])
+        if count > 0:
+            status_counts[label] = count
 
-        status_counts = {}
-        for s, label in status_map.items():
-            count = len(df[df["Status"].str.contains(s, case=False, na=False)])
-            if count > 0:
-                status_counts[label] = count
+    ordered_labels = list(status_counts.keys())
+    ordered_colors = [STATUS_COLORS.get(label, "#6b7280") for label in ordered_labels]
 
-        if status_counts:
-            fig = px.bar(
-                x=list(status_counts.keys()),
-                y=list(status_counts.values()),
-                color=list(status_counts.keys()),
-                color_discrete_map={
-                    "Interviewed": "#3b82f6",
-                    "Applied": "#9ca3af",
-                    "Rejected": "#ef4444",
-                    "Offered": "#22c55e",
-                    "Unknown": "#d1d5db",
-                    "Wishlist": "#f59e0b",
-                    "Follow-up Q": "#a855f7",
-                },
-                labels={"x": "", "y": "Count"},
+    shared_layout = dict(
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        margin=dict(l=0, r=0, t=10, b=0),
+        height=300,
+        font=dict(size=13),
+    )
+
+    tab_status, tab_funnel = st.tabs(["📊 Status breakdown", "🔀 Application funnel"])
+
+    with tab_status:
+        col_left, col_right = st.columns([1.5, 1])
+
+        with col_left:
+            st.markdown('<div class="section-header">Application status breakdown</div>', unsafe_allow_html=True)
+            if status_counts:
+                fig = px.bar(
+                    x=ordered_labels,
+                    y=list(status_counts.values()),
+                    color=ordered_labels,
+                    color_discrete_map=STATUS_COLORS,
+                    labels={"x": "", "y": "Count"},
+                )
+                fig.update_layout(showlegend=False, **shared_layout)
+                fig.update_traces(marker_line_width=0)
+                st.plotly_chart(fig, use_container_width=True)
+
+        with col_right:
+            st.markdown('<div class="section-header">Status distribution</div>', unsafe_allow_html=True)
+            if status_counts:
+                fig2 = go.Figure(data=[go.Pie(
+                    labels=ordered_labels,
+                    values=list(status_counts.values()),
+                    hole=0.55,
+                    marker_colors=ordered_colors,
+                )])
+                fig2.update_layout(
+                    showlegend=True,
+                    legend=dict(font=dict(size=11)),
+                    **shared_layout,
+                )
+                fig2.update_traces(textinfo="none")
+                st.plotly_chart(fig2, use_container_width=True)
+
+    with tab_funnel:
+        st.markdown('<div class="section-header">Application funnel</div>', unsafe_allow_html=True)
+        stage_data = df[df["Stage"].notna() & (df["Stage"].astype(str).str.strip() != "")]
+        if len(stage_data) < 5:
+            st.info(
+                f"Not enough stage data yet ({len(stage_data)} records). "
+                "The funnel chart will appear once more applications have stage history. "
+                "Stage is automatically recorded whenever you update an application status."
             )
-            fig.update_layout(
-                showlegend=False,
-                plot_bgcolor="white",
+        else:
+            # Parse stage paths into Sankey links
+            from collections import defaultdict
+            link_counts = defaultdict(int)
+            for stage_str in stage_data["Stage"].astype(str):
+                nodes = [s.strip() for s in stage_str.split("→")]
+                for i in range(len(nodes) - 1):
+                    link_counts[(nodes[i], nodes[i+1])] += 1
+
+            all_nodes = list(dict.fromkeys(
+                n for pair in link_counts for n in pair
+            ))
+            node_idx = {n: i for i, n in enumerate(all_nodes)}
+
+            node_colors = {
+                "interviewed":  "#1d4ed8",
+                "offered":      "#166534",
+                "rejected":     "#991b1b",
+                "follow-up q":  "#7e22ce",
+            }
+            n_colors = [node_colors.get(n.lower(), "#4b5563") for n in all_nodes]
+
+            fig3 = go.Figure(go.Sankey(
+                node=dict(
+                    label=all_nodes,
+                    color=n_colors,
+                    pad=20,
+                    thickness=20,
+                ),
+                link=dict(
+                    source=[node_idx[s] for s, _ in link_counts],
+                    target=[node_idx[t] for _, t in link_counts],
+                    value=list(link_counts.values()),
+                    color="rgba(180,180,180,0.3)",
+                ),
+            ))
+            fig3.update_layout(
                 paper_bgcolor="white",
                 margin=dict(l=0, r=0, t=10, b=0),
-                height=280,
+                height=320,
                 font=dict(size=13),
             )
-            fig.update_traces(marker_line_width=0)
-            st.plotly_chart(fig, use_container_width=True)
-
-    with col_right:
-        st.markdown('<div class="section-header">Status distribution</div>', unsafe_allow_html=True)
-
-        if status_counts:
-            fig2 = go.Figure(data=[go.Pie(
-                labels=list(status_counts.keys()),
-                values=list(status_counts.values()),
-                hole=0.55,
-                marker_colors=["#3b82f6", "#9ca3af", "#ef4444", "#22c55e", "#d1d5db", "#f59e0b", "#a855f7"],
-            )])
-            fig2.update_layout(
-                showlegend=True,
-                plot_bgcolor="white",
-                paper_bgcolor="white",
-                margin=dict(l=0, r=0, t=10, b=0),
-                height=280,
-                font=dict(size=12),
-                legend=dict(font=dict(size=11)),
-            )
-            fig2.update_traces(textinfo="none")
-            st.plotly_chart(fig2, use_container_width=True)
+            st.plotly_chart(fig3, use_container_width=True)
 
     # Recent applications
     st.markdown('<div class="section-header">Recent applications</div>', unsafe_allow_html=True)

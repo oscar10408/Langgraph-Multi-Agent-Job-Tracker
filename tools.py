@@ -179,12 +179,54 @@ def get_status_summary() -> str:
     return "\n".join(lines)
 
 
+# Stage progression rules:
+# applied     → (no stage recorded — stays empty)
+# follow-up q → "follow-up q"
+# interviewed → "interviewed"  (or append if previous stage exists)
+# rejected    → append "rejected" to existing stage
+# offered     → append "offered" to existing stage
+_STAGE_SKIP = {"applied", "none", ""}
+
+
+def _append_stage(current_stage: str, new_status: str) -> str | None:
+    """
+    Returns the updated Stage string given the current Stage value and new Status.
+    Returns None if no update is needed (e.g. applied → skip).
+    """
+    new_s = new_status.strip().lower()
+
+    # applied: never record a stage
+    if new_s in _STAGE_SKIP:
+        return None
+
+    current = str(current_stage or "").strip()
+
+    # Normalise new status label
+    label_map = {
+        "interviewed":  "interviewed",
+        "offered":      "offered",
+        "rejected":     "rejected",
+        "follow-up q":  "follow-up q",
+        "follow-up questionaire": "follow-up q",
+    }
+    label = label_map.get(new_s, new_s)
+
+    # Don't duplicate if already the last entry
+    parts = [p.strip() for p in current.split("→")] if current else []
+    if parts and parts[-1].lower() == label:
+        return None
+
+    parts.append(label)
+    return " → ".join(parts)
+
+
 def update_application(company: str = None, role: str = None,
                         notes: str = None, status: str = None,
                         job_id: int = None) -> str:
     """
     Updates fields for a specific application record, identified by row index or company name.
     job_id corresponds to the Nth data row in Excel (starting from 1).
+    Automatically maintains the Stage column when status changes.
     """
     wb, ws = _load_excel()
     headers = _get_headers(ws)
@@ -212,6 +254,12 @@ def update_application(company: str = None, role: str = None,
         ws.cell(row=target_row, column=col_map["JD"]).value = notes
     if status and "Status" in col_map:
         ws.cell(row=target_row, column=col_map["Status"]).value = status
+        # Update Stage column if present
+        if "Stage" in col_map:
+            current_stage = ws.cell(row=target_row, column=col_map["Stage"]).value
+            new_stage = _append_stage(current_stage, status)
+            if new_stage is not None:
+                ws.cell(row=target_row, column=col_map["Stage"]).value = new_stage
 
     _save_excel(wb)
 
@@ -561,6 +609,12 @@ Status rules:
             current_status = str(d.get("Status") or "").lower()
             if current_status != new_status:
                 ws.cell(row=i, column=col_map["Status"]).value = new_status
+                # Update Stage column if present
+                if "Stage" in col_map:
+                    current_stage = ws.cell(row=i, column=col_map["Stage"]).value
+                    new_stage = _append_stage(current_stage, new_status)
+                    if new_stage is not None:
+                        ws.cell(row=i, column=col_map["Stage"]).value = new_stage
                 updates.append(f"  {detected_company} → {new_status} (from: {item['subject'][:50]})")
 
     if updates:
