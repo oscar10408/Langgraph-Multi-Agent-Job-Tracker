@@ -167,16 +167,25 @@ EXCEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "R
 @st.cache_data(ttl=30)
 def load_data():
     """Load Excel data into DataFrame."""
-    def normalize_status(s):
-        s = str(s).lower().strip()
-        if "follow" in s or "questionaire" in s or "questionare" in s:
-            return "follow-up q"
-        if "interview" in s:
-            return "interviewed"
-        if "record" in s or "phone screen" in s or "screening" in s:
-            return "interviewed"
-        return s
-
+    def normalize_status(raw: str) -> str:
+        """Map free-form Status values to standard labels for display."""
+        s = str(raw or "").lower().strip()
+        if not s or s == "none":
+            return "Unknown"
+        if any(x in s for x in ["reject", "unfortunately", "not moving"]):
+            return "Rejected"
+        if any(x in s for x in ["offer", "selected", "hired"]):
+            return "Offered"
+        if any(x in s for x in ["interview", "screening", "1st", "2nd", "final", "phone", "onsite"]):
+            return "Interviewed"
+        if any(x in s for x in ["follow-up", "questionaire", "questionnaire", "assessment", "task"]):
+            return "Follow-up Q"
+        if s in ["applied", "pending"]:
+            return "Applied"
+        if s == "wishlist":
+            return "Wishlist"
+        return "Unknown"
+    
     try:
         df = pd.read_excel(EXCEL_PATH)
         df.columns = df.columns.str.strip()
