@@ -266,22 +266,11 @@ stats = get_status_counts(df) if not df.empty else {}
 # ══════════════════════════════════════════════════════════
 # PAGE: DASHBOARD
 # ══════════════════════════════════════════════════════════
-# ── Shared color palette — matches badge CSS foreground colors ──
-STATUS_COLORS = {
-    "Interviewed": "#1d4ed8",   # badge-interviewed
-    "Applied":     "#4b5563",   # badge-applied
-    "Rejected":    "#991b1b",   # badge-rejected
-    "Offered":     "#166534",   # badge-offered
-    "Follow-up Q": "#7e22ce",   # badge-followup
-    "Wishlist":    "#854d0e",   # badge-wishlist
-    "Unknown":     "#6b7280",   # badge-unknown
-}
-
 if page == "📊 Dashboard":
     st.markdown("## Dashboard")
     st.markdown(f"*Last updated: {date.today().strftime('%B %d, %Y')}*")
 
-    # ── Stats row ────────────────────────────────────────────
+    # Stats row
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         st.metric("Total Applied", stats.get("total", 0))
@@ -297,69 +286,77 @@ if page == "📊 Dashboard":
 
     st.markdown("---")
 
-    # ── Build status counts (shared by both charts) ──────────
-    status_map = {
-        "interviewed": "Interviewed",
-        "applied":     "Applied",
-        "rejected":    "Rejected",
-        "offered":     "Offered",
-        "unknown":     "Unknown",
-        "wishlist":    "Wishlist",
-        "follow-up q": "Follow-up Q",
-    }
-
-    status_counts = {}
-    for s, label in status_map.items():
-        count = len(df[df["Status"].str.contains(s, case=False, na=False)])
-        if count > 0:
-            status_counts[label] = count
-
-    # Derive ordered colors once — both charts use the same list
-    ordered_labels = list(status_counts.keys())
-    ordered_colors = [STATUS_COLORS.get(label, "#6b7280") for label in ordered_labels]
-
-    shared_layout = dict(
-        plot_bgcolor="white",
-        paper_bgcolor="white",
-        margin=dict(l=0, r=0, t=10, b=0),
-        height=280,
-        font=dict(size=13),
-    )
-
     col_left, col_right = st.columns([1.5, 1])
 
     with col_left:
         st.markdown('<div class="section-header">Application status breakdown</div>', unsafe_allow_html=True)
+
+        status_map = {
+            "interviewed": "Interviewed",
+            "applied": "Applied",
+            "rejected": "Rejected",
+            "offered": "Offered",
+            "unknown": "Unknown",
+            "wishlist": "Wishlist",
+            "follow-up q": "Follow-up Q",
+        }
+
+        status_counts = {}
+        for s, label in status_map.items():
+            count = len(df[df["Status"].str.contains(s, case=False, na=False)])
+            if count > 0:
+                status_counts[label] = count
+
         if status_counts:
             fig = px.bar(
-                x=ordered_labels,
+                x=list(status_counts.keys()),
                 y=list(status_counts.values()),
-                color=ordered_labels,
-                color_discrete_map=STATUS_COLORS,
+                color=list(status_counts.keys()),
+                color_discrete_map={
+                    "Interviewed": "#3b82f6",
+                    "Applied": "#9ca3af",
+                    "Rejected": "#ef4444",
+                    "Offered": "#22c55e",
+                    "Unknown": "#d1d5db",
+                    "Wishlist": "#f59e0b",
+                    "Follow-up Q": "#a855f7",
+                },
                 labels={"x": "", "y": "Count"},
             )
-            fig.update_layout(showlegend=False, **shared_layout)
+            fig.update_layout(
+                showlegend=False,
+                plot_bgcolor="white",
+                paper_bgcolor="white",
+                margin=dict(l=0, r=0, t=10, b=0),
+                height=280,
+                font=dict(size=13),
+            )
             fig.update_traces(marker_line_width=0)
             st.plotly_chart(fig, use_container_width=True)
 
     with col_right:
         st.markdown('<div class="section-header">Status distribution</div>', unsafe_allow_html=True)
+
         if status_counts:
             fig2 = go.Figure(data=[go.Pie(
-                labels=ordered_labels,
+                labels=list(status_counts.keys()),
                 values=list(status_counts.values()),
                 hole=0.55,
-                marker_colors=ordered_colors,
+                marker_colors=["#3b82f6", "#9ca3af", "#ef4444", "#22c55e", "#d1d5db", "#f59e0b", "#a855f7"],
             )])
             fig2.update_layout(
                 showlegend=True,
+                plot_bgcolor="white",
+                paper_bgcolor="white",
+                margin=dict(l=0, r=0, t=10, b=0),
+                height=280,
+                font=dict(size=12),
                 legend=dict(font=dict(size=11)),
-                **shared_layout,
             )
             fig2.update_traces(textinfo="none")
             st.plotly_chart(fig2, use_container_width=True)
 
-    # ── Recent applications ──────────────────────────────────
+    # Recent applications
     st.markdown('<div class="section-header">Recent applications</div>', unsafe_allow_html=True)
 
     recent = df.tail(10)[["Company", "Position", "Applied on", "Status"]].copy()
@@ -370,18 +367,13 @@ if page == "📊 Dashboard":
         with col1:
             st.markdown(f"**{row['Company']}**")
         with col2:
-            pos = str(row["Position"])
-            st.markdown(
-                f"<span style='color: #6b7280; font-size: 13px;'>{pos[:50]}{'...' if len(pos) > 50 else ''}</span>",
-                unsafe_allow_html=True,
-            )
+            pos = str(row['Position'])
+            st.markdown(f"<span style='color: #6b7280; font-size: 13px;'>{pos[:50]}{'...' if len(pos) > 50 else ''}</span>", unsafe_allow_html=True)
         with col3:
-            st.markdown(
-                f"<span style='color: #9ca3af; font-size: 13px;'>{row['Applied on']}</span>",
-                unsafe_allow_html=True,
-            )
+            st.markdown(f"<span style='color: #9ca3af; font-size: 13px;'>{row['Applied on']}</span>", unsafe_allow_html=True)
         with col4:
-            st.markdown(status_badge(row["Status"]), unsafe_allow_html=True)
+            st.markdown(status_badge(row['Status']), unsafe_allow_html=True)
+
 
 # ══════════════════════════════════════════════════════════
 # PAGE: APPLICATIONS
@@ -461,21 +453,16 @@ elif page == "📝 Cover Letter":
     st.markdown("## Cover Letter Generator")
 
     # ── Session state init ───────────────────────────────────
-    if "cl_draft" not in st.session_state:
-        st.session_state["cl_draft"] = None        # current draft text
-    if "cl_history" not in st.session_state:
-        st.session_state["cl_history"] = []        # [(role, message), ...]
-    if "cl_jd" not in st.session_state:
-        st.session_state["cl_jd"] = ""
-    if "cl_url" not in st.session_state:
-        st.session_state["cl_url"] = ""
+    for _k, _v in [("cl_draft", None), ("cl_history", []), ("cl_jd", ""), ("cl_url", "")]:
+        if _k not in st.session_state:
+            st.session_state[_k] = _v
 
-    # ── Step 1: Input (only show when no draft yet) ──────────
+    # ── Step 1: Input (only shown when no draft exists) ──────
     if st.session_state["cl_draft"] is None:
         url = st.text_input("Job URL", placeholder="https://jobs.ashbyhq.com/...")
         jd_manual = st.text_area(
             "Or paste JD manually", height=200,
-            placeholder="Paste the job description here if URL can't be fetched..."
+            placeholder="Paste the job description here if the URL can't be fetched automatically..."
         )
 
         if st.button("✨ Generate Cover Letter"):
@@ -506,61 +493,54 @@ elif page == "📝 Cover Letter":
                             st.session_state["cl_draft"] = draft
                             st.session_state["cl_jd"] = jd
                             st.session_state["cl_url"] = url
-                            st.session_state["cl_history"] = [
-                                ("assistant", draft)
-                            ]
+                            st.session_state["cl_history"] = [("assistant", draft)]
                             st.rerun()
                     except Exception as e:
                         st.error(f"Error: {e}")
 
-    # ── Step 2: Draft + Revision chat ───────────────────────
+    # ── Step 2: Draft editor + revision chat ─────────────────
     else:
-        # Reset button
         col_title, col_reset = st.columns([4, 1])
         with col_title:
             st.markdown("### Draft")
         with col_reset:
             if st.button("🔄 Start over"):
-                for key in ["cl_draft", "cl_history", "cl_jd", "cl_url"]:
-                    st.session_state.pop(key, None)
+                for _k in ["cl_draft", "cl_history", "cl_jd", "cl_url"]:
+                    st.session_state.pop(_k, None)
                 st.rerun()
 
-        # Show current draft in editable text area
-        edited = st.text_area(
+        # No key= so rerun always reflects the latest cl_draft value
+        st.text_area(
             "You can edit directly or ask the agent to revise below:",
             value=st.session_state["cl_draft"],
             height=420,
-            key="cl_draft_editor"
         )
-        # Sync manual edits back to session state
-        if edited != st.session_state["cl_draft"]:
-            st.session_state["cl_draft"] = edited
 
         st.markdown("---")
 
-        # Revision chat history
+        # Revision history
         if len(st.session_state["cl_history"]) > 1:
-            st.markdown("**Revision history**")
-            for role, msg in st.session_state["cl_history"][1:]:
-                if role == "user":
-                    st.markdown(
-                        f"<div style='background:#f3f4f6; padding:8px 12px; border-radius:8px; margin:4px 0; font-size:13px;'>💬 {msg}</div>",
-                        unsafe_allow_html=True
-                    )
-                else:
-                    st.markdown(
-                        f"<div style='background:#eff6ff; padding:8px 12px; border-radius:8px; margin:4px 0; font-size:13px; color:#1d4ed8;'>✏️ Revised</div>",
-                        unsafe_allow_html=True
-                    )
+            with st.expander("Revision history", expanded=False):
+                for role, msg in st.session_state["cl_history"][1:]:
+                    if role == "user":
+                        st.markdown(
+                            f"<div style='background:#f3f4f6;padding:8px 12px;border-radius:8px;"
+                            f"margin:4px 0;font-size:13px;'>💬 {msg}</div>",
+                            unsafe_allow_html=True,
+                        )
+                    else:
+                        st.markdown(
+                            "<div style='background:#eff6ff;padding:8px 12px;border-radius:8px;"
+                            "margin:4px 0;font-size:13px;color:#1d4ed8;'>✏️ Draft updated</div>",
+                            unsafe_allow_html=True,
+                        )
 
-        # Revision input
         revision_input = st.text_input(
             "Ask the agent to revise:",
-            placeholder="e.g. Make the opening paragraph more compelling, or shorten to 3 paragraphs",
-            key="cl_revision_input"
+            placeholder="e.g. Make the opening more compelling, or shorten to 3 paragraphs",
         )
 
-        col_revise, col_save = st.columns([1, 1])
+        col_revise, col_save = st.columns(2)
 
         with col_revise:
             if st.button("✏️ Revise", use_container_width=True):
@@ -570,22 +550,15 @@ elif page == "📝 Cover Letter":
                     with st.spinner("Revising..."):
                         try:
                             from langchain_groq import ChatGroq
-                            from langchain_core.messages import HumanMessage, SystemMessage
-
+                            from langchain_core.messages import HumanMessage
                             llm = ChatGroq(model="meta-llama/llama-4-scout-17b-16e-instruct")
-
-                            revision_prompt = f"""You are helping revise a cover letter.
-
-Current cover letter:
-{st.session_state["cl_draft"]}
-
-User's revision request: {revision_input}
-
-Return ONLY the revised cover letter, no explanation, no preamble."""
-
-                            response = llm.invoke([HumanMessage(content=revision_prompt)])
+                            response = llm.invoke([HumanMessage(content=(
+                                f"You are helping revise a cover letter.\n\n"
+                                f"Current cover letter:\n{st.session_state['cl_draft']}\n\n"
+                                f"Revision request: {revision_input}\n\n"
+                                f"Return ONLY the revised cover letter, no explanation, no preamble."
+                            ))])
                             new_draft = response.content.strip()
-
                             st.session_state["cl_history"].append(("user", revision_input))
                             st.session_state["cl_history"].append(("assistant", new_draft))
                             st.session_state["cl_draft"] = new_draft
@@ -595,40 +568,162 @@ Return ONLY the revised cover letter, no explanation, no preamble."""
 
         with col_save:
             if st.button("✅ Save cover letter", use_container_width=True):
+                with st.spinner("Saving..."):
+                    try:
+                        from tools import save_cover_letter
+                        from langchain_groq import ChatGroq
+                        from langchain_core.messages import HumanMessage
+                        llm = ChatGroq(model="meta-llama/llama-4-scout-17b-16e-instruct")
+                        extract = llm.invoke([HumanMessage(content=(
+                            f"Extract company name and job title from this job posting. "
+                            f"Reply in this exact format:\ncompany: X\nposition: Y\n\n"
+                            f"{st.session_state['cl_jd'][:2000]}"
+                        ))])
+                        company, position = "Unknown Company", "Unknown Position"
+                        for line in extract.content.split("\n"):
+                            if line.lower().startswith("company:"):
+                                company = line.split(":", 1)[1].strip()
+                            elif line.lower().startswith("position:"):
+                                position = line.split(":", 1)[1].strip()
+                        filepath = save_cover_letter(company, position, st.session_state["cl_draft"])
+                        st.success(f"✅ Saved: `{filepath}`")
+                        for _k in ["cl_draft", "cl_history", "cl_jd", "cl_url"]:
+                            st.session_state.pop(_k, None)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Save failed: {e}")
+
+# ══════════════════════════════════════════════════════════
+# PAGE: INTERVIEW PREP
+# ══════════════════════════════════════════════════════════
+elif page == "🎯 Interview Prep":
+    st.markdown("## Interview Prep")
+
+    url = st.text_input("Job URL", placeholder="https://...")
+    jd_manual = st.text_area("Or paste JD manually", height=200, placeholder="Paste the job description here...")
+
+    if st.button("🎯 Generate Interview Prep"):
+        if not url and not jd_manual:
+            st.warning("Please provide a URL or paste the JD.")
+        else:
+            with st.spinner("Generating interview prep guide..."):
                 try:
-                    from tools import save_cover_letter, load_profile
-                    import re
-
-                    profile = load_profile()
-
-                    # Try to extract company and position from JD or URL
-                    jd_text = st.session_state["cl_jd"]
-                    url_text = st.session_state["cl_url"]
-
-                    # Simple heuristic: ask LLM to extract
-                    from langchain_groq import ChatGroq
+                    from nodes import _generate_interview_prep
                     from langchain_core.messages import HumanMessage
-                    llm = ChatGroq(model="meta-llama/llama-4-scout-17b-16e-instruct")
-                    extract = llm.invoke([HumanMessage(content=
-                        f"Extract company name and job title from this job posting. "
-                        f"Reply in format: company: X\nposition: Y\n\n{jd_text[:2000]}"
-                    )])
-                    company, position = "Unknown Company", "Unknown Position"
-                    for line in extract.content.split("\n"):
-                        if line.lower().startswith("company:"):
-                            company = line.split(":", 1)[1].strip()
-                        elif line.lower().startswith("position:"):
-                            position = line.split(":", 1)[1].strip()
 
-                    filepath = save_cover_letter(company, position, st.session_state["cl_draft"])
-                    st.success(f"✅ Saved: `{filepath}`")
+                    if url and not jd_manual:
+                        from tools import scrape_job_url
+                        jd = scrape_job_url(url)
+                        if not jd or len(jd) < 200:
+                            jd = jd_manual
+                    else:
+                        jd = jd_manual
 
-                    # Clear draft after saving
-                    for key in ["cl_draft", "cl_history", "cl_jd", "cl_url"]:
-                        st.session_state.pop(key, None)
-                    st.rerun()
+                    if not jd:
+                        st.error("Could not fetch JD. Please paste it manually.")
+                    else:
+                        result = _generate_interview_prep(jd, url, {"messages": [HumanMessage(content="interview prep")]})
+                        st.markdown(result["result"])
+
                 except Exception as e:
-                    st.error(f"Save failed: {e}")
+                    st.error(f"Error: {e}")
+
+
+# ══════════════════════════════════════════════════════════
+# PAGE: JOB MATCH
+# ══════════════════════════════════════════════════════════
+elif page == "🔍 Job Match":
+    st.markdown("## Job Match Scorer")
+
+    tab1, tab2 = st.tabs(["Single job", "Batch score"])
+
+    with tab1:
+        company_input = st.text_input("Company name", placeholder="Caesars Entertainment")
+        url = st.text_input("Or job URL", placeholder="https://...")
+        jd_manual = st.text_area("Or paste JD manually", height=150, placeholder="Paste the job description here...")
+
+        if st.button("🔍 Score my match"):
+            with st.spinner("Analyzing job match..."):
+                try:
+                    from nodes import _generate_job_match
+                    from tools import get_jd_from_excel, scrape_job_url
+                    from langchain_core.messages import HumanMessage
+
+                    jd, final_company, final_position, row_index = "", "", "", None
+
+                    if company_input:
+                        excel_data = get_jd_from_excel(company=company_input)
+                        if excel_data and excel_data["jd"]:
+                            jd = excel_data["jd"]
+                            final_company = excel_data["company"]
+                            final_position = excel_data["position"]
+                            row_index = excel_data["row_index"]
+                            if not url and excel_data["url"]:
+                                url = excel_data["url"]
+
+                    if not jd and url:
+                        jd = scrape_job_url(url)
+
+                    if not jd and jd_manual:
+                        jd = jd_manual
+
+                    if not jd:
+                        st.error("Could not find JD. Please paste it manually.")
+                    else:
+                        result = _generate_job_match(jd, url, final_company, final_position, row_index, {"messages": [HumanMessage(content="job match")]})
+                        st.markdown(result["result"])
+                        st.cache_data.clear()
+
+                except Exception as e:
+                    st.error(f"Error: {e}")
+
+    with tab2:
+        limit = st.number_input("Score latest N jobs", min_value=1, max_value=20, value=5)
+
+        if st.button("🔍 Batch score"):
+            with st.spinner(f"Scoring {limit} jobs..."):
+                try:
+                    from tools import get_latest_jobs_with_jd, scrape_job_url
+                    from nodes import _generate_job_match
+                    from langchain_core.messages import HumanMessage
+
+                    jobs = get_latest_jobs_with_jd(limit=int(limit))
+                    results = []
+
+                    progress = st.progress(0)
+                    for idx, job in enumerate(jobs):
+                        jd = str(job.get("JD") or "").strip()
+                        url = str(job.get("Application Link") or "").strip()
+                        job_company = str(job.get("Company") or "")
+                        job_position = str(job.get("Position") or "")
+                        row_index = job["row_index"]
+
+                        if not jd and url:
+                            jd = scrape_job_url(url)
+
+                        if not jd:
+                            results.append({"Company": job_company, "Position": job_position, "Score": "N/A", "Note": "No JD"})
+                            continue
+
+                        match_result = _generate_job_match(jd, url, job_company, job_position, row_index, {"messages": [HumanMessage(content="job match")]})
+
+                        score = "N/A"
+                        import re
+                        for line in match_result["result"].split("\n"):
+                            if "SCORE:" in line.upper():
+                                m = re.search(r'(\d+)/10', line)
+                                if m:
+                                    score = f"{m.group(1)}/10"
+                                    break
+
+                        results.append({"Company": job_company, "Position": job_position[:50], "Score": score})
+                        progress.progress((idx + 1) / len(jobs))
+
+                    st.cache_data.clear()
+                    st.dataframe(pd.DataFrame(results), use_container_width=True)
+
+                except Exception as e:
+                    st.error(f"Error: {e}")
 
 
 # ══════════════════════════════════════════════════════════
