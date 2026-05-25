@@ -460,173 +460,175 @@ elif page == "📧 Email Scanner":
 elif page == "📝 Cover Letter":
     st.markdown("## Cover Letter Generator")
 
-    url = st.text_input("Job URL", placeholder="https://jobs.ashbyhq.com/...")
-    jd_manual = st.text_area("Or paste JD manually", height=200, placeholder="Paste the job description here if the URL can't be fetched automatically...")
-    
-    if st.button("✨ Generate Cover Letter"):
-        if not url and not jd_manual:
-            st.warning("Please provide a URL or paste the JD.")
-        else:
-            with st.spinner("Generating cover letter..."):
-                try:
-                    from nodes import _generate_cover_letter
-                    from langchain_core.messages import HumanMessage
+    # ── Session state init ───────────────────────────────────
+    if "cl_draft" not in st.session_state:
+        st.session_state["cl_draft"] = None        # current draft text
+    if "cl_history" not in st.session_state:
+        st.session_state["cl_history"] = []        # [(role, message), ...]
+    if "cl_jd" not in st.session_state:
+        st.session_state["cl_jd"] = ""
+    if "cl_url" not in st.session_state:
+        st.session_state["cl_url"] = ""
 
-                    if url and not jd_manual:
+    # ── Step 1: Input (only show when no draft yet) ──────────
+    if st.session_state["cl_draft"] is None:
+        url = st.text_input("Job URL", placeholder="https://jobs.ashbyhq.com/...")
+        jd_manual = st.text_area(
+            "Or paste JD manually", height=200,
+            placeholder="Paste the job description here if URL can't be fetched..."
+        )
+
+        if st.button("✨ Generate Cover Letter"):
+            if not url and not jd_manual:
+                st.warning("Please provide a URL or paste the JD.")
+            else:
+                with st.spinner("Generating cover letter..."):
+                    try:
+                        from nodes import _generate_cover_letter
+                        from langchain_core.messages import HumanMessage
                         from tools import scrape_job_url
-                        jd = scrape_job_url(url)
-                        if not jd or len(jd) < 200:
-                            jd = jd_manual
-                    else:
-                        jd = jd_manual
 
-                    if not jd:
-                        st.error("Could not fetch JD. Please paste it manually.")
-                    else:
-                        result = _generate_cover_letter(jd, url, {"messages": [HumanMessage(content="generate cover letter")]})
-                        cover_letter_text = result["result"]
-
-                        st.markdown("### Generated Cover Letter")
-                        st.text_area("", value=cover_letter_text, height=400)
-
-                        if "saved to:" in cover_letter_text.lower():
-                            st.success("Cover letter saved to your cover_letters/ folder!")
-
-                except Exception as e:
-                    st.error(f"Error: {e}")
-
-
-# ══════════════════════════════════════════════════════════
-# PAGE: INTERVIEW PREP
-# ══════════════════════════════════════════════════════════
-elif page == "🎯 Interview Prep":
-    st.markdown("## Interview Prep")
-
-    url = st.text_input("Job URL", placeholder="https://...")
-    jd_manual = st.text_area("Or paste JD manually", height=200, placeholder="Paste the job description here...")
-
-    if st.button("🎯 Generate Interview Prep"):
-        if not url and not jd_manual:
-            st.warning("Please provide a URL or paste the JD.")
-        else:
-            with st.spinner("Generating interview prep guide..."):
-                try:
-                    from nodes import _generate_interview_prep
-                    from langchain_core.messages import HumanMessage
-
-                    if url and not jd_manual:
-                        from tools import scrape_job_url
-                        jd = scrape_job_url(url)
-                        if not jd or len(jd) < 200:
-                            jd = jd_manual
-                    else:
-                        jd = jd_manual
-
-                    if not jd:
-                        st.error("Could not fetch JD. Please paste it manually.")
-                    else:
-                        result = _generate_interview_prep(jd, url, {"messages": [HumanMessage(content="interview prep")]})
-                        st.markdown(result["result"])
-
-                except Exception as e:
-                    st.error(f"Error: {e}")
-
-
-# ══════════════════════════════════════════════════════════
-# PAGE: JOB MATCH
-# ══════════════════════════════════════════════════════════
-elif page == "🔍 Job Match":
-    st.markdown("## Job Match Scorer")
-
-    tab1, tab2 = st.tabs(["Single job", "Batch score"])
-
-    with tab1:
-        company_input = st.text_input("Company name", placeholder="Caesars Entertainment")
-        url = st.text_input("Or job URL", placeholder="https://...")
-        jd_manual = st.text_area("Or paste JD manually", height=150, placeholder="Paste the job description here...")
-
-        if st.button("🔍 Score my match"):
-            with st.spinner("Analyzing job match..."):
-                try:
-                    from nodes import _generate_job_match
-                    from tools import get_jd_from_excel, scrape_job_url
-                    from langchain_core.messages import HumanMessage
-
-                    jd, final_company, final_position, row_index = "", "", "", None
-
-                    if company_input:
-                        excel_data = get_jd_from_excel(company=company_input)
-                        if excel_data and excel_data["jd"]:
-                            jd = excel_data["jd"]
-                            final_company = excel_data["company"]
-                            final_position = excel_data["position"]
-                            row_index = excel_data["row_index"]
-                            if not url and excel_data["url"]:
-                                url = excel_data["url"]
-
-                    if not jd and url:
-                        jd = scrape_job_url(url)
-
-                    if not jd and jd_manual:
-                        jd = jd_manual
-
-                    if not jd:
-                        st.error("Could not find JD. Please paste it manually.")
-                    else:
-                        result = _generate_job_match(jd, url, final_company, final_position, row_index, {"messages": [HumanMessage(content="job match")]})
-                        st.markdown(result["result"])
-                        st.cache_data.clear()
-
-                except Exception as e:
-                    st.error(f"Error: {e}")
-
-    with tab2:
-        limit = st.number_input("Score latest N jobs", min_value=1, max_value=20, value=5)
-
-        if st.button("🔍 Batch score"):
-            with st.spinner(f"Scoring {limit} jobs..."):
-                try:
-                    from tools import get_latest_jobs_with_jd, scrape_job_url
-                    from nodes import _generate_job_match
-                    from langchain_core.messages import HumanMessage
-
-                    jobs = get_latest_jobs_with_jd(limit=int(limit))
-                    results = []
-
-                    progress = st.progress(0)
-                    for idx, job in enumerate(jobs):
-                        jd = str(job.get("JD") or "").strip()
-                        url = str(job.get("Application Link") or "").strip()
-                        job_company = str(job.get("Company") or "")
-                        job_position = str(job.get("Position") or "")
-                        row_index = job["row_index"]
-
-                        if not jd and url:
+                        if url and not jd_manual:
                             jd = scrape_job_url(url)
+                            if not jd or len(jd) < 200:
+                                jd = jd_manual
+                        else:
+                            jd = jd_manual
 
                         if not jd:
-                            results.append({"Company": job_company, "Position": job_position, "Score": "N/A", "Note": "No JD"})
-                            continue
+                            st.error("Could not fetch JD. Please paste it manually.")
+                        else:
+                            result = _generate_cover_letter(
+                                jd, url,
+                                {"messages": [HumanMessage(content="generate cover letter")]}
+                            )
+                            draft = result["result"]
+                            st.session_state["cl_draft"] = draft
+                            st.session_state["cl_jd"] = jd
+                            st.session_state["cl_url"] = url
+                            st.session_state["cl_history"] = [
+                                ("assistant", draft)
+                            ]
+                            st.rerun()
+                    except Exception as e:
+                        st.error(f"Error: {e}")
 
-                        match_result = _generate_job_match(jd, url, job_company, job_position, row_index, {"messages": [HumanMessage(content="job match")]})
+    # ── Step 2: Draft + Revision chat ───────────────────────
+    else:
+        # Reset button
+        col_title, col_reset = st.columns([4, 1])
+        with col_title:
+            st.markdown("### Draft")
+        with col_reset:
+            if st.button("🔄 Start over"):
+                for key in ["cl_draft", "cl_history", "cl_jd", "cl_url"]:
+                    st.session_state.pop(key, None)
+                st.rerun()
 
-                        score = "N/A"
-                        import re
-                        for line in match_result["result"].split("\n"):
-                            if "SCORE:" in line.upper():
-                                m = re.search(r'(\d+)/10', line)
-                                if m:
-                                    score = f"{m.group(1)}/10"
-                                    break
+        # Show current draft in editable text area
+        edited = st.text_area(
+            "You can edit directly or ask the agent to revise below:",
+            value=st.session_state["cl_draft"],
+            height=420,
+            key="cl_draft_editor"
+        )
+        # Sync manual edits back to session state
+        if edited != st.session_state["cl_draft"]:
+            st.session_state["cl_draft"] = edited
 
-                        results.append({"Company": job_company, "Position": job_position[:50], "Score": score})
-                        progress.progress((idx + 1) / len(jobs))
+        st.markdown("---")
 
-                    st.cache_data.clear()
-                    st.dataframe(pd.DataFrame(results), use_container_width=True)
+        # Revision chat history
+        if len(st.session_state["cl_history"]) > 1:
+            st.markdown("**Revision history**")
+            for role, msg in st.session_state["cl_history"][1:]:
+                if role == "user":
+                    st.markdown(
+                        f"<div style='background:#f3f4f6; padding:8px 12px; border-radius:8px; margin:4px 0; font-size:13px;'>💬 {msg}</div>",
+                        unsafe_allow_html=True
+                    )
+                else:
+                    st.markdown(
+                        f"<div style='background:#eff6ff; padding:8px 12px; border-radius:8px; margin:4px 0; font-size:13px; color:#1d4ed8;'>✏️ Revised</div>",
+                        unsafe_allow_html=True
+                    )
 
+        # Revision input
+        revision_input = st.text_input(
+            "Ask the agent to revise:",
+            placeholder="e.g. Make the opening paragraph more compelling, or shorten to 3 paragraphs",
+            key="cl_revision_input"
+        )
+
+        col_revise, col_save = st.columns([1, 1])
+
+        with col_revise:
+            if st.button("✏️ Revise", use_container_width=True):
+                if not revision_input.strip():
+                    st.warning("Please describe what you want to change.")
+                else:
+                    with st.spinner("Revising..."):
+                        try:
+                            from langchain_groq import ChatGroq
+                            from langchain_core.messages import HumanMessage, SystemMessage
+
+                            llm = ChatGroq(model="meta-llama/llama-4-scout-17b-16e-instruct")
+
+                            revision_prompt = f"""You are helping revise a cover letter.
+
+Current cover letter:
+{st.session_state["cl_draft"]}
+
+User's revision request: {revision_input}
+
+Return ONLY the revised cover letter, no explanation, no preamble."""
+
+                            response = llm.invoke([HumanMessage(content=revision_prompt)])
+                            new_draft = response.content.strip()
+
+                            st.session_state["cl_history"].append(("user", revision_input))
+                            st.session_state["cl_history"].append(("assistant", new_draft))
+                            st.session_state["cl_draft"] = new_draft
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Revision failed: {e}")
+
+        with col_save:
+            if st.button("✅ Save cover letter", use_container_width=True):
+                try:
+                    from tools import save_cover_letter, load_profile
+                    import re
+
+                    profile = load_profile()
+
+                    # Try to extract company and position from JD or URL
+                    jd_text = st.session_state["cl_jd"]
+                    url_text = st.session_state["cl_url"]
+
+                    # Simple heuristic: ask LLM to extract
+                    from langchain_groq import ChatGroq
+                    from langchain_core.messages import HumanMessage
+                    llm = ChatGroq(model="meta-llama/llama-4-scout-17b-16e-instruct")
+                    extract = llm.invoke([HumanMessage(content=
+                        f"Extract company name and job title from this job posting. "
+                        f"Reply in format: company: X\nposition: Y\n\n{jd_text[:2000]}"
+                    )])
+                    company, position = "Unknown Company", "Unknown Position"
+                    for line in extract.content.split("\n"):
+                        if line.lower().startswith("company:"):
+                            company = line.split(":", 1)[1].strip()
+                        elif line.lower().startswith("position:"):
+                            position = line.split(":", 1)[1].strip()
+
+                    filepath = save_cover_letter(company, position, st.session_state["cl_draft"])
+                    st.success(f"✅ Saved: `{filepath}`")
+
+                    # Clear draft after saving
+                    for key in ["cl_draft", "cl_history", "cl_jd", "cl_url"]:
+                        st.session_state.pop(key, None)
+                    st.rerun()
                 except Exception as e:
-                    st.error(f"Error: {e}")
+                    st.error(f"Save failed: {e}")
 
 
 # ══════════════════════════════════════════════════════════
