@@ -170,14 +170,29 @@ def load_data():
         df = pd.read_excel(EXCEL_PATH)
         df.columns = df.columns.str.strip()
         df = df[df["Company"].notna() & (df["Company"] != "")]
-        df["Status"] = df["Status"].fillna("applied").str.lower().str.strip()
-        df["Status"] = df["Status"].apply(_normalize_status)
 
-        status_map = {
-            "unknown": "applied",
-            "unk": "applied",
-        }
-        df["Status"] = df["Status"].map(lambda x: status_map.get(x, x))
+        # Ensure Stage column exists
+        if "Stage" not in df.columns:
+            df["Stage"] = ""
+
+        df["Status"] = df["Status"].fillna("").str.strip()
+        df["Stage"]  = df["Stage"].fillna("").str.strip()
+
+        # Resolve final display status from Status + Stage (Stage as fallback)
+        def _resolve(row):
+            s = _normalize_status(row["Status"])
+            if s != "Unknown":
+                return s
+            # Fall back to last segment of Stage
+            stage = str(row["Stage"]).strip()
+            if stage and stage.lower() not in ("none", ""):
+                last = stage.split("\u2192")[-1].strip()
+                s2 = _normalize_status(last)
+                if s2 != "Unknown":
+                    return s2
+            return "Applied"  # blank status = still in progress
+
+        df["Status"] = df.apply(_resolve, axis=1)
         df["Applied on"] = df["Applied on"].fillna("Unknown")
         return df
     except Exception as e:
@@ -205,33 +220,32 @@ def _normalize_status(raw: str) -> str:
 
 
 def get_status_counts(df):
+    """df["Status"] is already normalized by load_data — just count directly."""
     counts = df["Status"].value_counts().to_dict()
     return {
-        "total": len(df),
-        "interviewed": counts.get("interviewed", 0) + counts.get("1st interview, 2nd interview", 0),
-        "offered": counts.get("offered", 0),
-        "rejected": counts.get("rejected", 0),
-        "applied": counts.get("applied", 0),
-        "follow_up": sum(v for k, v in counts.items() if "follow" in k or "questionaire" in k),
+        "total":       len(df),
+        "interviewed": counts.get("Interviewed", 0),
+        "offered":     counts.get("Offered", 0),
+        "rejected":    counts.get("Rejected", 0),
+        "applied":     counts.get("Applied", 0),
+        "follow_up":   counts.get("Follow-up Q", 0),
     }
 
 
 def status_badge(status):
-    s = str(status).lower().strip()
-    if "interview" in s:
-        return f'<span class="badge badge-interviewed">Interviewed</span>'
-    elif s == "offered":
-        return f'<span class="badge badge-offered">Offered</span>'
-    elif s == "rejected":
-        return f'<span class="badge badge-rejected">Rejected</span>'
-    elif s == "applied":
-        return f'<span class="badge badge-applied">Applied</span>'
-    elif "follow" in s or "questionaire" in s or "questionare" in s:
-        return f'<span class="badge badge-followup">Follow-up Q</span>'
-    elif s == "wishlist":
-        return f'<span class="badge badge-wishlist">Wishlist</span>'
-    else:
-        return f'<span class="badge badge-unknown">{status}</span>'
+    """Status is already normalized — map directly to badge CSS."""
+    badge_map = {
+        "Interviewed": "badge-interviewed",
+        "Offered":     "badge-offered",
+        "Rejected":    "badge-rejected",
+        "Applied":     "badge-applied",
+        "Follow-up Q": "badge-followup",
+        "Wishlist":    "badge-wishlist",
+        "Unknown":     "badge-unknown",
+    }
+    label = str(status).strip()
+    css = badge_map.get(label, "badge-unknown")
+    return f'<span class="badge {css}">{label}</span>'
 
 
 # ── Sidebar ────────────────────────────────────────────────
@@ -305,20 +319,10 @@ if page == "📊 Dashboard":
         "Unknown":     "#6b7280",
     }
 
-    status_map = {
-        "interviewed": "Interviewed",
-        "applied":     "Applied",
-        "rejected":    "Rejected",
-        "offered":     "Offered",
-        "unknown":     "Unknown",
-        "wishlist":    "Wishlist",
-        "follow-up q": "Follow-up Q",
-    }
-
-    normalized = df["Status"].apply(_normalize_status)
+    # df["Status"] already normalized in load_data — count directly
     status_counts = {}
     for label in ["Interviewed", "Applied", "Rejected", "Offered", "Follow-up Q", "Wishlist", "Unknown"]:
-        count = (normalized == label).sum()
+        count = int((df["Status"] == label).sum())
         if count > 0:
             status_counts[label] = count
 
