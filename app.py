@@ -453,7 +453,8 @@ elif page == "📝 Cover Letter":
     st.markdown("## Cover Letter Generator")
 
     # ── Session state init ───────────────────────────────────
-    for _k, _v in [("cl_draft", None), ("cl_history", []), ("cl_jd", ""), ("cl_url", "")]:
+    for _k, _v in [("cl_draft", None), ("cl_history", []), ("cl_jd", ""), ("cl_url", ""),
+                     ("cl_download_ready", False), ("cl_download_buf", None), ("cl_download_name", "")]:
         if _k not in st.session_state:
             st.session_state[_k] = _v
 
@@ -567,12 +568,16 @@ elif page == "📝 Cover Letter":
                             st.error(f"Revision failed: {e}")
 
         with col_save:
-            if st.button("✅ Save cover letter", use_container_width=True):
-                with st.spinner("Saving..."):
+            if st.button("✅ Prepare download", use_container_width=True):
+                with st.spinner("Preparing..."):
                     try:
-                        from tools import save_cover_letter
                         from langchain_groq import ChatGroq
                         from langchain_core.messages import HumanMessage
+                        from docx import Document
+                        from docx.shared import Inches
+                        import io
+
+                        # Extract company and position from JD
                         llm = ChatGroq(model="meta-llama/llama-4-scout-17b-16e-instruct")
                         extract = llm.invoke([HumanMessage(content=(
                             f"Extract company name and job title from this job posting. "
@@ -585,13 +590,48 @@ elif page == "📝 Cover Letter":
                                 company = line.split(":", 1)[1].strip()
                             elif line.lower().startswith("position:"):
                                 position = line.split(":", 1)[1].strip()
-                        filepath = save_cover_letter(company, position, st.session_state["cl_draft"])
-                        st.success(f"✅ Saved: `{filepath}`")
-                        for _k in ["cl_draft", "cl_history", "cl_jd", "cl_url"]:
-                            st.session_state.pop(_k, None)
+
+                        # Build docx in memory
+                        doc = Document()
+                        section = doc.sections[0]
+                        section.top_margin    = Inches(0.5)
+                        section.bottom_margin = Inches(0.5)
+                        section.left_margin   = Inches(0.5)
+                        section.right_margin  = Inches(0.5)
+                        doc.add_heading(f"Cover Letter — {position}", level=1)
+                        doc.add_paragraph(f"Company: {company}")
+                        doc.add_paragraph(f"Position: {position}")
+                        doc.add_paragraph("")
+                        for para in st.session_state["cl_draft"].split("\n"):
+                            if para.strip():
+                                doc.add_paragraph(para.strip())
+
+                        buf = io.BytesIO()
+                        doc.save(buf)
+                        buf.seek(0)
+
+                        filename = f"Cover_Letter_{position.replace(' ', '_')}.docx"
+                        st.session_state["cl_download_buf"]  = buf.getvalue()
+                        st.session_state["cl_download_name"] = filename
+                        st.session_state["cl_download_ready"] = True
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Save failed: {e}")
+                        st.error(f"Failed: {e}")
+
+        # Download button appears once the docx is ready
+        if st.session_state.get("cl_download_ready"):
+            st.download_button(
+                label="⬇️ Download .docx",
+                data=st.session_state["cl_download_buf"],
+                file_name=st.session_state["cl_download_name"],
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                use_container_width=True,
+            )
+            if st.button("🗑️ Done, clear draft", use_container_width=True):
+                for _k in ["cl_draft", "cl_history", "cl_jd", "cl_url",
+                           "cl_download_buf", "cl_download_name", "cl_download_ready"]:
+                    st.session_state.pop(_k, None)
+                st.rerun()
 
 # ══════════════════════════════════════════════════════════
 # PAGE: INTERVIEW PREP
