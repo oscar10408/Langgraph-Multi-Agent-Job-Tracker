@@ -337,9 +337,7 @@ if page == "📊 Dashboard":
         font=dict(size=13),
     )
 
-    tab_status, tab_funnel = st.tabs(["📊 Status breakdown", "🔀 Application funnel"])
-
-    with tab_status:
+    with st.container():
         col_left, col_right = st.columns([1.5, 1])
 
         with col_left:
@@ -373,95 +371,6 @@ if page == "📊 Dashboard":
                 fig2.update_traces(textinfo="none")
                 st.plotly_chart(fig2, use_container_width=True)
 
-    with tab_funnel:
-        st.markdown('<div class="section-header">Application funnel</div>', unsafe_allow_html=True)
-
-        from collections import defaultdict
-
-        def _infer_path(status: str, stage: str) -> list:
-            """
-            Infer a full stage path from Status + Stage columns.
-            Stage (if it has arrows) takes priority; otherwise infer from Status.
-            Always prepends Applied as the starting node.
-            """
-            stage = str(stage or "").strip()
-            status = str(status or "").strip()
-
-            # If Stage already has a real path (contains →), use it
-            if "→" in stage:
-                nodes = ["Applied"] + [s.strip() for s in stage.split("→")]
-                return nodes
-
-            # Otherwise infer from Status
-            paths = {
-                "Interviewed":  ["Applied", "Interviewed"],
-                "Offered":      ["Applied", "Interviewed", "Offered"],
-                "Rejected":     ["Applied", "Rejected"],
-                "Follow-up Q":  ["Applied", "Follow-up Q"],
-            }
-            # If Stage has a single value, use it as the terminal node
-            if stage and stage.lower() not in ("none", "", "pending"):
-                terminal = stage.title()
-                if terminal in ("Interviewed", "Offered", "Rejected", "Follow-up Q"):
-                    return paths.get(terminal, ["Applied", terminal])
-
-            return paths.get(status, [])
-
-        # Build link counts from inferred paths
-        link_counts = defaultdict(int)
-        for _, row in df.iterrows():
-            path = _infer_path(row.get("Status", ""), row.get("Stage", ""))
-            for i in range(len(path) - 1):
-                link_counts[(path[i], path[i + 1])] += 1
-
-        # Remove self-loops and zero-value links
-        link_counts = {k: v for k, v in link_counts.items() if k[0] != k[1] and v > 0}
-
-        if not link_counts:
-            st.info("Not enough data to draw the funnel chart.")
-        else:
-            # Fixed node order for consistent left-to-right layout
-            node_order = ["Applied", "Interviewed", "Follow-up Q", "Offered", "Rejected"]
-            all_nodes = [n for n in node_order if any(n in pair for pair in link_counts)]
-            # Add any unexpected nodes not in the predefined order
-            for pair in link_counts:
-                for n in pair:
-                    if n not in all_nodes:
-                        all_nodes.append(n)
-
-            node_idx = {n: i for i, n in enumerate(all_nodes)}
-
-            node_colors = {
-                "Applied":      "#4b5563",
-                "Interviewed":  "#1d4ed8",
-                "Offered":      "#166534",
-                "Rejected":     "#991b1b",
-                "Follow-up Q":  "#7e22ce",
-            }
-            n_colors = [node_colors.get(n, "#6b7280") for n in all_nodes]
-
-            fig3 = go.Figure(go.Sankey(
-                node=dict(
-                    label=all_nodes,
-                    color=n_colors,
-                    pad=24,
-                    thickness=20,
-                ),
-                link=dict(
-                    source=[node_idx[s] for s, _ in link_counts],
-                    target=[node_idx[t] for _, t in link_counts],
-                    value=list(link_counts.values()),
-                    color="rgba(180,180,180,0.3)",
-                ),
-            ))
-            fig3.update_layout(
-                paper_bgcolor="white",
-                margin=dict(l=0, r=0, t=10, b=0),
-                height=340,
-                font=dict(size=13),
-            )
-            st.plotly_chart(fig3, use_container_width=True)
-            st.caption("Paths are inferred from Status and Stage columns. Stage history recorded via update_application() will improve accuracy over time.")
 
     # Recent applications
     st.markdown('<div class="section-header">Recent applications</div>', unsafe_allow_html=True)
