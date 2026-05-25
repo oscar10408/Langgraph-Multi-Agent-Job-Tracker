@@ -266,11 +266,22 @@ stats = get_status_counts(df) if not df.empty else {}
 # ══════════════════════════════════════════════════════════
 # PAGE: DASHBOARD
 # ══════════════════════════════════════════════════════════
+# ── Shared color palette — matches badge CSS foreground colors ──
+STATUS_COLORS = {
+    "Interviewed": "#1d4ed8",   # badge-interviewed
+    "Applied":     "#4b5563",   # badge-applied
+    "Rejected":    "#991b1b",   # badge-rejected
+    "Offered":     "#166534",   # badge-offered
+    "Follow-up Q": "#7e22ce",   # badge-followup
+    "Wishlist":    "#854d0e",   # badge-wishlist
+    "Unknown":     "#6b7280",   # badge-unknown
+}
+
 if page == "📊 Dashboard":
     st.markdown("## Dashboard")
     st.markdown(f"*Last updated: {date.today().strftime('%B %d, %Y')}*")
 
-    # Stats row
+    # ── Stats row ────────────────────────────────────────────
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         st.metric("Total Applied", stats.get("total", 0))
@@ -286,77 +297,69 @@ if page == "📊 Dashboard":
 
     st.markdown("---")
 
+    # ── Build status counts (shared by both charts) ──────────
+    status_map = {
+        "interviewed": "Interviewed",
+        "applied":     "Applied",
+        "rejected":    "Rejected",
+        "offered":     "Offered",
+        "unknown":     "Unknown",
+        "wishlist":    "Wishlist",
+        "follow-up q": "Follow-up Q",
+    }
+
+    status_counts = {}
+    for s, label in status_map.items():
+        count = len(df[df["Status"].str.contains(s, case=False, na=False)])
+        if count > 0:
+            status_counts[label] = count
+
+    # Derive ordered colors once — both charts use the same list
+    ordered_labels = list(status_counts.keys())
+    ordered_colors = [STATUS_COLORS.get(label, "#6b7280") for label in ordered_labels]
+
+    shared_layout = dict(
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        margin=dict(l=0, r=0, t=10, b=0),
+        height=280,
+        font=dict(size=13),
+    )
+
     col_left, col_right = st.columns([1.5, 1])
 
     with col_left:
         st.markdown('<div class="section-header">Application status breakdown</div>', unsafe_allow_html=True)
-
-        status_map = {
-            "interviewed": "Interviewed",
-            "applied": "Applied",
-            "rejected": "Rejected",
-            "offered": "Offered",
-            "unknown": "Unknown",
-            "wishlist": "Wishlist",
-            "follow-up q": "Follow-up Q",
-        }
-
-        status_counts = {}
-        for s, label in status_map.items():
-            count = len(df[df["Status"].str.contains(s, case=False, na=False)])
-            if count > 0:
-                status_counts[label] = count
-
         if status_counts:
             fig = px.bar(
-                x=list(status_counts.keys()),
+                x=ordered_labels,
                 y=list(status_counts.values()),
-                color=list(status_counts.keys()),
-                color_discrete_map={
-                    "Interviewed": "#3b82f6",
-                    "Applied": "#9ca3af",
-                    "Rejected": "#ef4444",
-                    "Offered": "#22c55e",
-                    "Unknown": "#d1d5db",
-                    "Wishlist": "#f59e0b",
-                    "Follow-up Q": "#a855f7",
-                },
+                color=ordered_labels,
+                color_discrete_map=STATUS_COLORS,
                 labels={"x": "", "y": "Count"},
             )
-            fig.update_layout(
-                showlegend=False,
-                plot_bgcolor="white",
-                paper_bgcolor="white",
-                margin=dict(l=0, r=0, t=10, b=0),
-                height=280,
-                font=dict(size=13),
-            )
+            fig.update_layout(showlegend=False, **shared_layout)
             fig.update_traces(marker_line_width=0)
             st.plotly_chart(fig, use_container_width=True)
 
     with col_right:
         st.markdown('<div class="section-header">Status distribution</div>', unsafe_allow_html=True)
-
         if status_counts:
             fig2 = go.Figure(data=[go.Pie(
-                labels=list(status_counts.keys()),
+                labels=ordered_labels,
                 values=list(status_counts.values()),
                 hole=0.55,
-                marker_colors=["#3b82f6", "#9ca3af", "#ef4444", "#22c55e", "#d1d5db", "#f59e0b", "#a855f7"],
+                marker_colors=ordered_colors,
             )])
             fig2.update_layout(
                 showlegend=True,
-                plot_bgcolor="white",
-                paper_bgcolor="white",
-                margin=dict(l=0, r=0, t=10, b=0),
-                height=280,
-                font=dict(size=12),
                 legend=dict(font=dict(size=11)),
+                **shared_layout,
             )
             fig2.update_traces(textinfo="none")
             st.plotly_chart(fig2, use_container_width=True)
 
-    # Recent applications
+    # ── Recent applications ──────────────────────────────────
     st.markdown('<div class="section-header">Recent applications</div>', unsafe_allow_html=True)
 
     recent = df.tail(10)[["Company", "Position", "Applied on", "Status"]].copy()
@@ -367,13 +370,18 @@ if page == "📊 Dashboard":
         with col1:
             st.markdown(f"**{row['Company']}**")
         with col2:
-            pos = str(row['Position'])
-            st.markdown(f"<span style='color: #6b7280; font-size: 13px;'>{pos[:50]}{'...' if len(pos) > 50 else ''}</span>", unsafe_allow_html=True)
+            pos = str(row["Position"])
+            st.markdown(
+                f"<span style='color: #6b7280; font-size: 13px;'>{pos[:50]}{'...' if len(pos) > 50 else ''}</span>",
+                unsafe_allow_html=True,
+            )
         with col3:
-            st.markdown(f"<span style='color: #9ca3af; font-size: 13px;'>{row['Applied on']}</span>", unsafe_allow_html=True)
+            st.markdown(
+                f"<span style='color: #9ca3af; font-size: 13px;'>{row['Applied on']}</span>",
+                unsafe_allow_html=True,
+            )
         with col4:
-            st.markdown(status_badge(row['Status']), unsafe_allow_html=True)
-
+            st.markdown(status_badge(row["Status"]), unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════
 # PAGE: APPLICATIONS
