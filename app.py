@@ -166,8 +166,25 @@ EXCEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "R
 
 @st.cache_data(ttl=30)
 def load_data():
-    """Load Excel data into DataFrame."""
-    def _normalize_status(raw: str) -> str:
+    try:
+        df = pd.read_excel(EXCEL_PATH)
+        df.columns = df.columns.str.strip()
+        df = df[df["Company"].notna() & (df["Company"] != "")]
+        df["Status"] = df["Status"].fillna("applied").str.lower().str.strip()
+        df["Status"] = df["Status"].apply(_normalize_status)
+
+        status_map = {
+            "unknown": "applied",
+            "unk": "applied",
+        }
+        df["Status"] = df["Status"].map(lambda x: status_map.get(x, x))
+        df["Applied on"] = df["Applied on"].fillna("Unknown")
+        return df
+    except Exception as e:
+        st.error(f"Error loading data: {e}")
+        return pd.DataFrame()
+
+def _normalize_status(raw: str) -> str:
         """Map free-form Status values to standard labels for display."""
         s = str(raw or "").lower().strip()
         if not s or s == "none":
@@ -185,24 +202,6 @@ def load_data():
         if s == "wishlist":
             return "Wishlist"
         return "Unknown"
-
-    try:
-        df = pd.read_excel(EXCEL_PATH)
-        df.columns = df.columns.str.strip()
-        df = df[df["Company"].notna() & (df["Company"] != "")]
-        df["Status"] = df["Status"].fillna("applied").str.lower().str.strip()
-        df["Status"] = df["Status"].apply(normalize_status)
-
-        status_map = {
-            "unknown": "applied",
-            "unk": "applied",
-        }
-        df["Status"] = df["Status"].map(lambda x: status_map.get(x, x))
-        df["Applied on"] = df["Applied on"].fillna("Unknown")
-        return df
-    except Exception as e:
-        st.error(f"Error loading data: {e}")
-        return pd.DataFrame()
 
 
 def get_status_counts(df):
