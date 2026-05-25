@@ -438,10 +438,10 @@ def _generate_cover_letter(jd: str, url: str, state: AgentState) -> AgentState:
 
     # 存成 Word 檔
     filepath = save_cover_letter(company, position, result)
-    save_msg = f"\n\n✅ Cover letter saved to: {filepath}"
+    print(f"[CoverLetter] ✅ Cover letter saved to: {filepath}")
 
     return {
-    "result": result + save_msg,
+    "result": result,
     "pending_action": "",
     "pending_url": "",
     "pending_jd": "",
