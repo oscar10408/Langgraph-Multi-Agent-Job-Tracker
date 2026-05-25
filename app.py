@@ -167,7 +167,7 @@ EXCEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "R
 @st.cache_data(ttl=30)
 def load_data():
     """Load Excel data into DataFrame."""
-    def normalize_status(raw: str) -> str:
+    def _normalize_status(raw: str) -> str:
         """Map free-form Status values to standard labels for display."""
         s = str(raw or "").lower().strip()
         if not s or s == "none":
@@ -185,7 +185,7 @@ def load_data():
         if s == "wishlist":
             return "Wishlist"
         return "Unknown"
-    
+
     try:
         df = pd.read_excel(EXCEL_PATH)
         df.columns = df.columns.str.strip()
@@ -316,9 +316,10 @@ if page == "📊 Dashboard":
         "follow-up q": "Follow-up Q",
     }
 
+    normalized = df["Status"].apply(_normalize_status)
     status_counts = {}
-    for s, label in status_map.items():
-        count = len(df[df["Status"].str.contains(s, case=False, na=False)])
+    for label in ["Interviewed", "Applied", "Rejected", "Offered", "Follow-up Q", "Wishlist", "Unknown"]:
+        count = (normalized == label).sum()
         if count > 0:
             status_counts[label] = count
 
